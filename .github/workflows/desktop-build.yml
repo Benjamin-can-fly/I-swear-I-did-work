@@ -1,0 +1,78 @@
+name: Build desktop previews
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+permissions:
+  contents: read
+jobs:
+  macos:
+    name: macOS ${{ matrix.arch }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            arch: arm64
+          - runner: macos-15-intel
+            arch: x64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 25
+    env:
+      TZ: Asia/Shanghai
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.18.0'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: npm ci
+      - run: npm test
+      - run: npx playwright install webkit
+      - run: node tests/cross-platform-ui.mjs
+      - run: python scripts/build-macos.py --arch ${{ matrix.arch }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-${{ matrix.arch }}-installer
+          path: |
+            dist/*.dmg
+            dist/*.sha256
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: macos-${{ matrix.arch }}-test-evidence
+          path: artifacts/
+  windows:
+    runs-on: windows-2022
+    timeout-minutes: 25
+    env:
+      TZ: Asia/Shanghai
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.18.0'
+      - run: npm ci
+      - run: npm test
+      - run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/setup-desktop.ps1
+      - run: npm run build:desktop
+      - name: Ensure WebView2 runtime
+        shell: pwsh
+        run: |
+          $check = Start-Process -FilePath ./dist/stage/WorkJournal.exe -ArgumentList '--check-runtime' -Wait -PassThru -WindowStyle Hidden
+          if ($check.ExitCode -ne 0) {
+            Start-Process -FilePath ./dist/stage/MicrosoftEdgeWebview2Setup.exe -ArgumentList '/silent /install' -Wait -WindowStyle Hidden
+            $check = Start-Process -FilePath ./dist/stage/WorkJournal.exe -ArgumentList '--check-runtime' -Wait -PassThru -WindowStyle Hidden
+            if ($check.ExitCode -ne 0) { throw 'WebView2 runtime installation failed' }
+          }
+      - run: node tests/desktop-native.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-x64-installer
+          path: |
+            dist/*setup.exe
+            dist/*.sha256
+          if-no-files-found: error

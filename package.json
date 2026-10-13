@@ -1,0 +1,20 @@
+{
+  "name": "work-journal",
+  "version": "0.2.2",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node --env-file-if-exists=.env server/index.js",
+    "test": "node --test tests/core.test.js tests/task-record.test.js tests/delete-entry.test.js tests/report.test.js",
+    "test:ui": "node tests/browser.mjs",
+    "build:desktop": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-desktop.ps1",
+    "test:webkit": "node tests/cross-platform-ui.mjs",
+    "test:drafts": "node tests/draft-recovery-ui.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.0"
+  },
+  "license": "MIT",
+  "description": "Local-first work records, tasks, timeline and PDF reports."
+}
+
