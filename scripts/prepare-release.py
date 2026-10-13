@@ -1,5 +1,5 @@
 """Create a clean upload folder and source ZIP without copying user data."""
-import hashlib, json, os, shutil, subprocess, zipfile
+import hashlib, json, os, shutil, subprocess, zipfile, sys
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 VERSION=json.loads((ROOT/'package.json').read_text(encoding='utf-8-sig'))['version']
@@ -8,8 +8,13 @@ delivery=desktop/f'Work Log_{VERSION}_上传准备'
 source=delivery/'01_上传到GitHub的源码'
 packages=delivery/'02_安装包'
 guides=delivery/'03_说明与核对'
-if source.exists():raise SystemExit('Upload source already exists; preserve it and review before replacing.')
-source.mkdir(parents=True)
+if source.exists():
+ if '--refresh' not in sys.argv:raise SystemExit('Upload source already exists; use --refresh after reviewing changes.')
+ if subprocess.check_output(['git','status','--porcelain'],cwd=source):raise SystemExit('Upload source has uncommitted changes; preserve them before refresh.')
+ prior=json.loads((guides/'源码校验清单.json').read_text(encoding='utf-8'))
+ for rel,digest in prior.items():
+  if hashlib.sha256((source/rel).read_bytes()).hexdigest()!=digest:raise SystemExit('Upload source changed: '+rel)
+source.mkdir(parents=True,exist_ok=True)
 packages.mkdir(parents=True,exist_ok=True);guides.mkdir(parents=True,exist_ok=True)
 files=[]
 for name in ['src','server','desktop','.github']:

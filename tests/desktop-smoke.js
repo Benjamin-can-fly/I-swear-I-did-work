@@ -6,7 +6,7 @@
   if(document.title!=='Work Log')throw Error('名称未统一');
   click('.sidebar [data-appearance]');click('[data-accent="#3566a0"]');
   await wait(()=>getComputedStyle(document.documentElement).getPropertyValue('--green').trim()==='#3566a0');
-  click('[aria-label="关闭外观"]');
+  click('[aria-label="关闭调色盘"]');
   if(window.workJournalPlatform==='windows'&&document.querySelectorAll('.window-controls button').length!==3)throw Error('窗口按钮不完整');
   const content=document.querySelector('#raw-input');content.value='桌面保存验证\n保留详细过程与 16:32 的时间';content.dispatchEvent(new Event('input',{bubbles:true}));click('#organize');await wait(()=>content.value==='');
   click('.sidebar [data-page=timeline]');await wait(()=>document.querySelector('#open-report'));
