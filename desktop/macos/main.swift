@@ -39,7 +39,7 @@ final class JournalApp: NSObject, NSApplicationDelegate, WKNavigationDelegate, W
         let bridge = """
         window.workJournalDesktop=true;window.workJournalPlatform="mac";
         const listeners=new Set();
-        window.chrome={webview:{postMessage:m=>window.webkit.messageHandlers.journal.postMessage(m),addEventListener:(t,f)=>{if(t==='message')listeners.add(f)}}};
+        window.chrome={webview:{postMessage:m=>{if(m.type==='app-ready')window.__workLogReady=true;window.webkit.messageHandlers.journal.postMessage(m)},addEventListener:(t,f)=>{if(t==='message')listeners.add(f)}}};
         window.__journalNativeResult=m=>listeners.forEach(f=>f({data:m}));
         """
         config.userContentController.addUserScript(WKUserScript(source: bridge, injectionTime: .atDocumentStart, forMainFrameOnly: true))
@@ -192,7 +192,7 @@ final class JournalApp: NSObject, NSApplicationDelegate, WKNavigationDelegate, W
     }
     @MainActor func smoke() async {
         do {
-            try await waitScript("!!document.querySelector('#record-form')")
+            try await waitScript("window.__workLogReady === true && !!document.querySelector('#record-form')")
             let path = ProcessInfo.processInfo.environment["WORKJOURNAL_TEST_SCRIPT"]!
             let script = try String(contentsOfFile: path, encoding: .utf8)
             _ = try await web.evaluateJavaScript(script + "\n;void 0;")

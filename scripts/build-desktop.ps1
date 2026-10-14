@@ -45,7 +45,9 @@ $lines+='RMDir "$INSTDIR\app"';Set-Content -LiteralPath $uninstall -Value $lines
 $output=Join-Path $root "dist/WorkLog-$version-windows-x64-setup.exe"
 & (Join-Path $deps 'nsis-packed/makensis.exe') /V2 "/DVERSION=$version" "/DSTAGE=$stage" "/DOUTPUT=$output" "/DUNINSTALL_FILES=$uninstall" "$root/desktop/installer.nsi"
 if($LASTEXITCODE -ne 0){throw 'Installer compilation failed'}
-$hash=(Get-FileHash -LiteralPath $output -Algorithm SHA256).Hash
+$stream=[IO.File]::OpenRead($output)
+$sha=[Security.Cryptography.SHA256]::Create()
+try {$hash=[BitConverter]::ToString($sha.ComputeHash($stream)).Replace('-','')} finally {$stream.Dispose();$sha.Dispose()}
 Set-Content -LiteralPath ($output+'.sha256') -Value ($hash+'  '+[IO.Path]::GetFileName($output)) -Encoding ascii
 Get-Item -LiteralPath $output | Select-Object FullName,Length
 

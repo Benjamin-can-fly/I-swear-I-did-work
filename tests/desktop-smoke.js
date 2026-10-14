@@ -1,5 +1,5 @@
 (async()=>{
- const wait=async fn=>{for(let i=0;i<200;i++){if(fn())return;await new Promise(r=>setTimeout(r,100));}throw Error('等待界面超时');};
+ const wait=async fn=>{for(let i=0;i<200;i++){if(fn())return;await new Promise(r=>setTimeout(r,100));}throw Error('等待界面超时: '+String(fn));};
  const click=s=>{const el=document.querySelector(s);if(!el)throw Error('未找到 '+s);el.click();};
  try{
   if(!window.workJournalDesktop)throw Error('桌面桥接未注入');
@@ -16,6 +16,6 @@
   const response=await fetch('/api/data'),data=(await response.json()).data;
   if(!data.records.some(r=>r.details.includes('桌面保存验证')))throw Error('保存未持久化');
   window.__desktopTestResult={success:true,records:data.records.length,message:'Native save, palette, integrated window controls and direct PDF verified'};
- }catch(e){window.__desktopTestResult={success:false,error:e.stack};}
+ }catch(e){window.__desktopTestResult={success:false,error:e.message+'\n'+e.stack};}
  window.__desktopTestDone=true;
 })();
