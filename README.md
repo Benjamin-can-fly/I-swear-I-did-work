@@ -12,7 +12,7 @@
 
 ![工作记录首页，使用公开示例数据](docs/images/journal.png)
 
-> 软件名称为 Work Log，使用绿色记录页与时间节点图标。Windows x64 已完成本机安装及导出测试；Mac 的适配代码和自动构建流程已加入，安装包仅在 Mac 构建、运行测试通过后提供。请以 Releases 实际列出的附件为准。
+> Windows x64、Mac 苹果芯片版和 Mac Intel 版均已完成构建及原生保存、调色盘、PDF 导出测试。安装包见 [0.2.2 发布页](https://github.com/Benjamin-can-fly/work-journal/releases/tag/v0.2.2)。
 
 ## 可以做什么
 
@@ -36,8 +36,8 @@
 | 你的电脑 | 安装包标识 | 兼容目标与验证情况 |
 | --- | --- | --- |
 | Windows，Intel / AMD 64 位电脑 | `windows-x64-setup.exe` | Windows 10 / 11；已在 Windows 11 本机验证，Windows 10 尚待单独验证 |
-| Mac，苹果 M 系列芯片 | `macos-arm64.dmg` | macOS 13.5 及以上；需 Mac 构建与运行测试通过后发布 |
-| Mac，Intel 芯片 | `macos-x64.dmg` | macOS 13.5 及以上；需 Mac 构建与运行测试通过后发布 |
+| Mac，苹果 M 系列芯片 | `macos-arm64.dmg` | macOS 13.5 及以上；已在 macOS 15 ARM runner 构建并运行验证 |
+| Mac，Intel 芯片 | `macos-x64.dmg` | macOS 13.5 及以上；已在 macOS 15 Intel runner 构建并运行验证 |
 
 Windows 32 位（x86）和 Windows ARM 原生版本暂不提供。同一处理器类型共用一个安装包，并注明系统范围；兼容目标不代表每一代系统均已实机验证。
 

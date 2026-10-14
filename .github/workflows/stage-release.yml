@@ -1,0 +1,42 @@
+name: Stage verified installers
+on:
+  workflow_dispatch:
+    inputs:
+      windows_run:
+        description: Successful Windows build run ID
+        required: true
+      macos_run:
+        description: Successful macOS build run ID
+        required: true
+permissions:
+  actions: read
+  contents: write
+jobs:
+  stage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows-x64-installer
+          run-id: ${{ inputs.windows_run }}
+          github-token: ${{ github.token }}
+          path: packages
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: macos-*-installer
+          run-id: ${{ inputs.macos_run }}
+          github-token: ${{ github.token }}
+          merge-multiple: true
+          path: packages
+      - name: Verify and attach to draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          cd packages
+          for checksum in *.sha256; do sha256sum --check "$checksum"; done
+          test -f WorkLog-0.2.2-windows-x64-setup.exe
+          test -f WorkLog-0.2.2-macos-arm64.dmg
+          test -f WorkLog-0.2.2-macos-x64.dmg
+          test "$(gh release view v0.2.2 --json isDraft --jq .isDraft)" = true
+          gh release upload v0.2.2 ./* --clobber

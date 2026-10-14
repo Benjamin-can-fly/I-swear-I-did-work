@@ -46,20 +46,27 @@ with zipfile.ZipFile(archive) as z:
  assert all(hashlib.sha256(z.read(rel)).hexdigest()==digest for rel,digest in manifest.items())
 for name in [f'WorkLog-{VERSION}-windows-x64-setup.exe',f'WorkLog-{VERSION}-windows-x64-setup.exe.sha256']:
  shutil.copy2(ROOT/'dist'/name,packages/name)
-(packages/'Mac安装包状态.txt').write_text('Mac 苹果芯片与 Intel 的源码和构建目标均为 '+VERSION+'。\n当前目录没有 DMG：需上传源码后运行 GitHub Actions 的两个 Mac 构建任务，通过实际运行测试后下载。\n不要把 Windows EXE 或源码 ZIP 发给 Mac 用户作为安装包。\n',encoding='utf-8-sig')
+mac_packages = list((ROOT/'dist').glob(f'WorkLog-{VERSION}-macos-*.dmg'))
+for package in mac_packages:
+ shutil.copy2(package,packages/package.name)
+ shutil.copy2(Path(str(package)+'.sha256'),packages/(package.name+'.sha256'))
+mac_status = ('Mac 安装包已提供：'+', '.join(p.name for p in mac_packages)) if len(mac_packages)==2 else 'Mac 安装包尚未补齐，需对应的原生构建和运行测试通过。'
+(packages/'Mac安装包状态.txt').write_text(mac_status+'\n不要把 Windows EXE 或源码 ZIP 发给 Mac 用户作为安装包。\n',encoding='utf-8-sig')
 for p in (ROOT/'output/pdf').glob('*.pdf'):shutil.copy2(p,guides/p.name)
 shutil.copy2(ROOT/'docs'/f'ACCEPTANCE-{VERSION}.md',guides/'最终需求核对.md')
 (guides/'源码校验清单.json').write_text(json.dumps(manifest,ensure_ascii=False,indent=2),encoding='utf-8')
-(delivery/'先读我.txt').write_text(f'''工作日志 {VERSION} · 上传准备
+(delivery/'先读我.txt').write_text(f'''Work Log {VERSION}
 
 01_上传到GitHub的源码：在 GitHub Desktop 中添加此目录，然后 Publish repository。
-02_安装包：已验证的 Windows 安装包。Mac 安装包需 GitHub Mac 构建通过后补齐。
+02_安装包：Windows 安装包。{mac_status}
 03_说明与核对：17 页使用说明、5 页分享和 GitHub 教程、最终需求核对表。
 WorkJournal-{VERSION}-source.zip：干净源码备份。请解压后上传文件，不要只上传这个 ZIP 当仓库。
 
 用户名 Benjamin-can-fly；建议仓库 work-journal；公开；MIT。
 上传后 Actions → Build desktop previews → Run workflow。三个任务通过后才发布完整安装包合集。
-本包不包含私人日志、附件、缓存或 API 密钥。尚未替你上传 GitHub。
+本包不包含私人日志、附件、缓存或 API 密钥。
+公开源码：https://github.com/Benjamin-can-fly/work-journal
+安装包发布页：https://github.com/Benjamin-can-fly/work-journal/releases/tag/v{VERSION}
 桌面“Work Log”是日常使用入口；源项目仍在 E:\\工作日志。
 ''',encoding='utf-8-sig')
 # An initialized local repository makes GitHub Desktop's Add local repository unambiguous.
