@@ -29,7 +29,7 @@ git diff --cached --quiet
 if($LASTEXITCODE -eq 1){git commit -m 'Prepare open-source desktop preview';if($LASTEXITCODE -ne 0){throw 'Git commit failed'}}
 $remote=git config --get remote.origin.url
 if(!$remote){
- & $gh repo create "$Owner/$Repository" --public --description '本机工作记录、待办、时间线与 PDF 汇报' --source . --remote origin --push
+ & $gh repo create "$Owner/$Repository" --public --description ((Get-Content -LiteralPath 'package.json' -Raw -Encoding UTF8 | ConvertFrom-Json).description) --source . --remote origin --push
  if($LASTEXITCODE -ne 0){throw 'Repository creation or upload failed. Existing repositories were not overwritten.'}
 }else{
  if($remote -notin @("https://github.com/$Owner/$Repository.git","https://github.com/$Owner/$Repository","git@github.com:$Owner/$Repository.git")){throw 'Unexpected origin. Upload stopped.'}
