@@ -18,8 +18,10 @@ final class JournalApp: NSObject, NSApplicationDelegate, WKNavigationDelegate, W
     var launchOverlay: NSView?
     var launchTicker: Timer?
     let launchedAt = Date()
+    func trace(_ text: String) { if testing { FileHandle.standardError.write(Data((text + "\n").utf8)) } }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        trace("native: application launched")
         let env = ProcessInfo.processInfo.environment
         let port = Int(env["WORKJOURNAL_PORT"] ?? "43171") ?? 43171
         origin = "http://127.0.0.1:\(port)"
@@ -38,6 +40,7 @@ final class JournalApp: NSObject, NSApplicationDelegate, WKNavigationDelegate, W
         config.userContentController.add(self, name: "journal")
         let bridge = """
         window.workJournalDesktop=true;window.workJournalPlatform="mac";
+        window.__workLogErrors=[];window.addEventListener('error',e=>window.__workLogErrors.push(e.message));window.addEventListener('unhandledrejection',e=>window.__workLogErrors.push(String(e.reason)));
         const listeners=new Set();
         window.chrome={webview:{postMessage:m=>{if(m.type==='app-ready')window.__workLogReady=true;window.webkit.messageHandlers.journal.postMessage(m)},addEventListener:(t,f)=>{if(t==='message')listeners.add(f)}}};
         window.__journalNativeResult=m=>listeners.forEach(f=>f({data:m}));
@@ -91,12 +94,14 @@ final class JournalApp: NSObject, NSApplicationDelegate, WKNavigationDelegate, W
                 try await Task.sleep(nanoseconds: 100_000_000)
             }
             guard ready else { throw failure("启动超时，请关闭后重新打开。") }
+            trace("native: backend ready")
             web.load(URLRequest(url: URL(string: origin)!))
             if testing { await smoke() }
         } catch { failStartup(error) }
     }
     func failure(_ text: String) -> NSError { NSError(domain: "WorkJournal", code: 1, userInfo: [NSLocalizedDescriptionKey: text]) }
     func failStartup(_ error: Error) {
+        trace("native failure: \(error)")
         if testing { try? String(describing: error).write(to: dataURL.appendingPathComponent("smoke-error.txt"), atomically: true, encoding: .utf8) }
         else { let a = NSAlert(); a.messageText = "无法打开Work Log"; a.informativeText = error.localizedDescription; a.runModal() }
         NSApp.terminate(nil)
@@ -164,6 +169,7 @@ final class JournalApp: NSObject, NSApplicationDelegate, WKNavigationDelegate, W
         exportTimer = Timer.scheduledTimer(withTimeInterval: 25, repeats: false) { _ in self.finishExport(false, "PDF 排版超时，请重试") }
     }
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        trace("native: navigation finished \(webView.url?.absoluteString ?? "none")")
         guard webView === printer, let destination = printDestination else { return }
         let info = NSPrintInfo(); info.paperSize = NSSize(width: 595.276, height: 841.89)
         info.topMargin = 0; info.bottomMargin = 0; info.leftMargin = 0; info.rightMargin = 0
@@ -184,8 +190,12 @@ final class JournalApp: NSObject, NSApplicationDelegate, WKNavigationDelegate, W
         }
     }
     @MainActor func waitScript(_ expression: String) async throws {
-        for _ in 0..<450 {
+        for attempt in 0..<450 {
             if let result = try? await web.evaluateJavaScript(expression), result as? Bool == true { return }
+            if attempt % 100 == 0 {
+                let state = try? await web.evaluateJavaScript("JSON.stringify({ready:window.__workLogReady,errors:window.__workLogErrors,form:!!document.querySelector('#record-form'),theme:getComputedStyle(document.documentElement).getPropertyValue('--green')})")
+                trace("native: waiting \(expression) \(String(describing: state))")
+            }
             try await Task.sleep(nanoseconds: 100_000_000)
         }
         throw failure("Desktop test timed out: " + expression)
@@ -193,6 +203,7 @@ final class JournalApp: NSObject, NSApplicationDelegate, WKNavigationDelegate, W
     @MainActor func smoke() async {
         do {
             try await waitScript("window.__workLogReady === true && !!document.querySelector('#record-form')")
+            trace("native: frontend ready; running smoke")
             let path = ProcessInfo.processInfo.environment["WORKJOURNAL_TEST_SCRIPT"]!
             let script = try String(contentsOfFile: path, encoding: .utf8)
             _ = try await web.evaluateJavaScript(script + "\n;void 0;")
@@ -206,7 +217,7 @@ final class JournalApp: NSObject, NSApplicationDelegate, WKNavigationDelegate, W
 
 let application = NSApplication.shared
 let delegate = JournalApp()
-application.setActivationPolicy(delegate.testing ? .accessory : .regular)
+application.setActivationPolicy(.regular)
 application.delegate = delegate
 application.run()
 
