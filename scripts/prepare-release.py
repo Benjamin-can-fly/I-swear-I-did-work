@@ -57,20 +57,22 @@ shutil.copy2(ROOT/'docs'/f'ACCEPTANCE-{VERSION}.md',guides/'最终需求核对.m
 (guides/'源码校验清单.json').write_text(json.dumps(manifest,ensure_ascii=False,indent=2),encoding='utf-8')
 (delivery/'先读我.txt').write_text(f'''Work Log {VERSION}
 
-01_上传到GitHub的源码：在 GitHub Desktop 中添加此目录，然后 Publish repository。
+01_上传到GitHub的源码：干净源码及 Git 仓库，可继续修改并同步到公开仓库。
 02_安装包：Windows 安装包。{mac_status}
 03_说明与核对：17 页使用说明、5 页分享和 GitHub 教程、最终需求核对表。
 WorkJournal-{VERSION}-source.zip：干净源码备份。请解压后上传文件，不要只上传这个 ZIP 当仓库。
 
-用户名 Benjamin-can-fly；建议仓库 work-journal；公开；MIT。
-上传后 Actions → Build desktop previews → Run workflow。三个任务通过后才发布完整安装包合集。
+用户名 Benjamin-can-fly；仓库 work-journal；公开；MIT。
+后续更新可运行 Actions 中的 Build desktop previews，验证后再发布新版。
 本包不包含私人日志、附件、缓存或 API 密钥。
 公开源码：https://github.com/Benjamin-can-fly/work-journal
 安装包发布页：https://github.com/Benjamin-can-fly/work-journal/releases/tag/v{VERSION}
 桌面“Work Log”是日常使用入口；源项目仍在 E:\\工作日志。
 ''',encoding='utf-8-sig')
 # An initialized local repository makes GitHub Desktop's Add local repository unambiguous.
-for args in [['init','-b','main'],['config','user.name','Benjamin-can-fly'],['config','user.email','Benjamin-can-fly@users.noreply.github.com'],['add','--all'],['commit','-m',f'Prepare {VERSION} desktop preview']]:
+for args in [['init','-b','main'],['config','user.name','Benjamin-can-fly'],['config','user.email','Benjamin-can-fly@users.noreply.github.com'],['add','--all']]:
  subprocess.run(['git',*args],cwd=source,check=True,stdout=subprocess.DEVNULL)
+if subprocess.check_output(['git','status','--porcelain'],cwd=source):
+ subprocess.run(['git','commit','-m',f'Prepare {VERSION} release files'],cwd=source,check=True,stdout=subprocess.DEVNULL)
 print(json.dumps({'delivery':str(delivery),'sourceFiles':len(manifest),'sourceZipBytes':archive.stat().st_size},ensure_ascii=False))
 
