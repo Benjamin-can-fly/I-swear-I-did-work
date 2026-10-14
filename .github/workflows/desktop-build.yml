@@ -1,12 +1,19 @@
 name: Build desktop previews
 on:
   workflow_dispatch:
+    inputs:
+      platform:
+        description: Platforms to build
+        type: choice
+        default: all
+        options: [all, macos, windows]
   push:
     tags: ['v*']
 permissions:
   contents: read
 jobs:
   macos:
+    if: github.event_name != 'workflow_dispatch' || inputs.platform != 'windows'
     name: macOS ${{ matrix.arch }}
     strategy:
       fail-fast: false
@@ -46,6 +53,7 @@ jobs:
           name: macos-${{ matrix.arch }}-test-evidence
           path: artifacts/
   windows:
+    if: github.event_name != 'workflow_dispatch' || inputs.platform != 'macos'
     runs-on: windows-2022
     timeout-minutes: 25
     env:
