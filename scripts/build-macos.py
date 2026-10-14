@@ -42,7 +42,7 @@ def build(arch):
             shutil.copytree(ROOT/name, code/name)
         for name in ['LICENSE','THIRD-PARTY-NOTICES.md']:
             if (ROOT/name).exists(): shutil.copy2(ROOT/name, resources/name)
-        shutil.copy2(ROOT/'output/pdf/工作日志使用说明.pdf',resources/'使用说明.pdf')
+        shutil.copy2(ROOT/'output/pdf/Work-Log-User-Guide.pdf',resources/'使用说明.pdf')
         with (contents/'Info.plist').open('wb') as file:
             plistlib.dump({'CFBundleExecutable':'WorkJournal','CFBundleIdentifier':'io.github.benjamin-can-fly.work-journal',
                 'CFBundleName':'Work Log','CFBundleDisplayName':'Work Log','CFBundlePackageType':'APPL',

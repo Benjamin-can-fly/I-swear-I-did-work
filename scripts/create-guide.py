@@ -9,7 +9,7 @@ from reportlab.lib.styles import ParagraphStyle
 from PIL import Image
 
 ROOT=Path(__file__).resolve().parents[1]
-OUT=ROOT/'output/pdf/工作日志使用说明.pdf'
+OUT=ROOT/'output/pdf/Work-Log-User-Guide.pdf'
 OUT.parent.mkdir(parents=True,exist_ok=True)
 SHOTS=ROOT/'artifacts/guide'
 pdfmetrics.registerFont(TTFont('YaHei','C:/Windows/Fonts/msyh.ttc',subfontIndex=0))

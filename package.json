@@ -15,7 +15,7 @@
     "@playwright/test": "^1.56.0"
   },
   "license": "MIT",
-  "description": "Your brain has 37 tabs open. Work Log keeps the receipts: local-first work journal, to-do tasks, timeline, PDF reports and reversible task-to-log sync.",
+  "description": "A local-first work journal for people who say “I’ll remember this” and absolutely won’t. Record your work, review progress, manage tasks, and organize your timeline.",
   "repository": {
     "type": "git",
     "url": "https://github.com/Benjamin-can-fly/work-journal.git"

@@ -2,9 +2,7 @@
 
 # Work Log
 
-**你的大脑开了 37 个标签页，还不知道哪一个在放歌。**
-
-Work Log 替你记住做过的事、接下来要做的事，以及周报到底该写什么。
+A local-first work journal for people who say “I’ll remember this” and absolutely won’t. Record your work, review progress, manage tasks, and organize your timeline.
 
 本机保存 · 工作记录 · 待办事项 · 时间线 · PDF 汇报
 
@@ -31,9 +29,9 @@ Local-first work journal & to-do app · Windows / macOS · Timeline · PDF expor
 
 无需配置模型或 API 密钥。当前不提供 AI 总结；保存和导出你填写的内容。
 
-## 勾错了能撤，日志不记仇
+## 待办与记录如何同步
 
-界面可以有点弹性，数据之间的关系得讲道理：
+待办与工作记录采用可选的单向同步：
 
 - **同步由你决定。** 每条待办单独选择是否自动同步；开启后，完成事项生成对应工作记录。
 - **同一件事，不写成两套故事。** 已同步待办的修改、回退、删除会更新对应记录，重复完成不会凭空多出一份。
@@ -43,7 +41,7 @@ Local-first work journal & to-do app · Windows / macOS · Timeline · PDF expor
 
 具体行为及验证范围见[需求核对与测试记录](docs/ACCEPTANCE-0.2.2.md)。
 
-0.2.2 新增保留时间与开关设置的清空按钮、统一应用图标，并修正 Windows 高分屏窗口尺寸、优化启动流程：本机两次首帧响应约 0.9 秒，完整可操作约 3.3 秒，加载期间显示进度与等待时间。此前已修复已删除条目的旧编辑草稿无法保存、无截止时间待办的日期显示为空等问题。“数据与备份”中可查看当前版本。详见[需求核对与验证范围](docs/ACCEPTANCE-0.2.2.md)，完整操作见[使用说明 PDF](output/pdf/工作日志使用说明.pdf)。
+0.2.2 新增保留时间与开关设置的清空按钮、统一应用图标，并修正 Windows 高分屏窗口尺寸、优化启动流程：本机两次首帧响应约 0.9 秒，完整可操作约 3.3 秒，加载期间显示进度与等待时间。此前已修复已删除条目的旧编辑草稿无法保存、无截止时间待办的日期显示为空等问题。“数据与备份”中可查看当前版本。详见[需求核对与验证范围](docs/ACCEPTANCE-0.2.2.md)，完整操作见[使用说明 PDF](output/pdf/Work-Log-User-Guide.pdf)。
 
 ## 下载与安装
 

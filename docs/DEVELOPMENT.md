@@ -1,6 +1,6 @@
 # 工作日志
 
-本机运行的工作记录、待办事项、时间线和数据后台。双击桌面的“工作日志”，或运行 `启动工作日志.cmd`，打开 http://127.0.0.1:4317 。
+本机运行的工作记录、待办事项、时间线和数据后台。双击桌面的“工作日志”，或运行 `Start-Work-Log.cmd`，打开 http://127.0.0.1:4317 。
 
 ## 当前使用方式
 
@@ -52,7 +52,7 @@
 
 界面截图保存在 `artifacts/`，其中的数据均为测试样例。
 
-完整图文使用说明：`output/pdf/工作日志使用说明.pdf`，含 14 页界面、按钮和常见操作说明。
+完整图文使用说明：`output/pdf/Work-Log-User-Guide.pdf`，含 14 页界面、按钮和常见操作说明。
 
 
 ## 桌面预览版与汇报导出（0.2.2）
@@ -70,9 +70,9 @@ Windows x64 桌面版使用 WinForms / WebView2 与随包 Node.js。朋友只需
 需要 Windows x64、.NET Framework 4.7.2+（本机使用系统 csc）、Node.js 22.9+。Windows 10/11 自带 tar 用于解包 NSIS。构建目录不要混入私人文件。
 
 1. `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/setup-desktop.ps1`：下载校验 WebView2 SDK、NSIS 和 Microsoft 运行时引导安装器；下载当前 Node 版本许可证。
-2. 确保 `output/pdf/工作日志使用说明.pdf` 存在。需要重生成时运行 `scripts/create-guide.py`（需 ReportLab、Pillow 和微软雅黑字体，截图由 UI 测试生成）。
+2. 确保 `output/pdf/Work-Log-User-Guide.pdf` 存在。需要重生成时运行 `scripts/create-guide.py`（需 ReportLab、Pillow 和微软雅黑字体，截图由 UI 测试生成）。
 3. `npm run build:desktop`：编译桌面外壳，按白名单拷贝运行文件，生成安装包及 SHA-256。Node 使用开发机当前安装版本，正式发布应固定版本。`-StageOnly` 可仅生成运行目录。
-4. 将安装包、校验文件和使用说明放到 GitHub Releases。教程位于 `output/pdf/分享软件与上传GitHub教程.pdf`。
+4. 将安装包、校验文件和使用说明放到 GitHub Releases。教程位于 `output/pdf/Work-Log-GitHub-Guide.pdf`。
 
 新增验证：`node tests/report-ui.mjs` 覆盖跨月批选、分组、取消勾选、无数据变更、中文长文 PDF 与窄屏。`tests/desktop-smoke.js` 在独立临时数据目录内验证原生窗口保存、桥接和直接 PDF 导出。测试端口与正式使用端口分离。
 

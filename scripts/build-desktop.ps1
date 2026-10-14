@@ -24,7 +24,7 @@ Copy-Item -LiteralPath (Join-Path $deps 'NODE-LICENSE') -Destination (Join-Path 
 foreach($name in @('index.html','report.html','package.json')){Copy-Item -LiteralPath (Join-Path $root $name) -Destination (Join-Path $stage 'app') -Force}
 foreach($name in @('src','server')){Copy-Item -LiteralPath (Join-Path $root $name) -Destination (Join-Path $stage 'app') -Recurse -Force}
 Copy-Item -LiteralPath (Join-Path $deps 'MicrosoftEdgeWebview2Setup.exe') -Destination $stage -Force
-Copy-Item -LiteralPath (Join-Path $root 'output/pdf/工作日志使用说明.pdf') -Destination (Join-Path $stage '使用说明.pdf') -Force
+Copy-Item -LiteralPath (Join-Path $root 'output/pdf/Work-Log-User-Guide.pdf') -Destination (Join-Path $stage '使用说明.pdf') -Force
 Copy-Item -LiteralPath (Join-Path $root 'LICENSE') -Destination $stage -Force
 @'
 Work Log

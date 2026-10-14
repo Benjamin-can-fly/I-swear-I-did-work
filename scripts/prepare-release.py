@@ -3,15 +3,15 @@ import hashlib, json, os, shutil, subprocess, zipfile, sys
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 VERSION=json.loads((ROOT/'package.json').read_text(encoding='utf-8-sig'))['version']
-desktop=Path(os.environ['USERPROFILE'])/'Desktop'
-delivery=desktop/f'Work-Log-{VERSION}-Release'
+delivery=ROOT/'release-prep'/f'Work-Log-{VERSION}-Release'
 source=delivery/'01-Source'
 packages=delivery/'02-Installers'
 guides=delivery/'03-Guides'
+prior={}
 if source.exists():
  if '--refresh' not in sys.argv:raise SystemExit('Upload source already exists; use --refresh after reviewing changes.')
  if subprocess.check_output(['git','status','--porcelain'],cwd=source):raise SystemExit('Upload source has uncommitted changes; preserve them before refresh.')
- prior=json.loads((guides/'源码校验清单.json').read_text(encoding='utf-8'))
+ prior=json.loads((guides/'Source-Checksums.json').read_text(encoding='utf-8'))
  for rel,digest in prior.items():
   if hashlib.sha256((source/rel).read_bytes()).hexdigest()!=digest:raise SystemExit('Upload source changed: '+rel)
 source.mkdir(parents=True,exist_ok=True)
@@ -19,7 +19,7 @@ packages.mkdir(parents=True,exist_ok=True);guides.mkdir(parents=True,exist_ok=Tr
 files=[]
 for name in ['src','server','desktop','.github']:
  files.extend(p for p in (ROOT/name).rglob('*') if p.is_file() and '__pycache__' not in p.parts)
-for name in ['package.json','package-lock.json','index.html','report.html','README.md','LICENSE','THIRD-PARTY-NOTICES.md','.gitignore','.env.example','启动工作日志.cmd','停止工作日志.cmd','上传到GitHub.cmd']:
+for name in ['package.json','package-lock.json','index.html','report.html','README.md','LICENSE','THIRD-PARTY-NOTICES.md','.gitignore','.env.example','Start-Work-Log.cmd','Stop-Work-Log.cmd','Publish-to-GitHub.cmd']:
  files.append(ROOT/name)
 for name in ['render-icon.mjs','build-icons.py','build-desktop.ps1','build-macos.py','setup-desktop.ps1','start.ps1','stop.ps1','publish-github.ps1','prepare-release.py','create-guide.py','create-github-guide.py']:
  files.append(ROOT/'scripts'/name)
@@ -35,6 +35,11 @@ for original in files:
  digest=hashlib.sha256(original.read_bytes()).hexdigest()
  assert hashlib.sha256(dest.read_bytes()).hexdigest()==digest
  manifest[rel.as_posix()]=digest
+for rel in set(prior)-set(manifest):
+ obsolete=(source/rel).resolve()
+ if not obsolete.is_relative_to(source.resolve()):raise SystemExit('Unexpected obsolete path: '+rel)
+ obsolete.unlink()
+assert all(rel.isascii() for rel in manifest), 'Source filenames must be ASCII'
 assert not any(p.startswith(('data/','artifacts/','node_modules/','.build-tools/','dist/')) or p=='.env' for p in manifest)
 assert json.loads((source/'package.json').read_text())['version']==VERSION
 assert f"'{VERSION}'" in (source/'src/lib/version.js').read_text()
@@ -51,11 +56,11 @@ for package in mac_packages:
  shutil.copy2(package,packages/package.name)
  shutil.copy2(Path(str(package)+'.sha256'),packages/(package.name+'.sha256'))
 mac_status = ('Mac 安装包已提供：'+', '.join(p.name for p in mac_packages)) if len(mac_packages)==2 else 'Mac 安装包尚未补齐，需对应的原生构建和运行测试通过。'
-(packages/'Mac安装包状态.txt').write_text(mac_status+'\n不要把 Windows EXE 或源码 ZIP 发给 Mac 用户作为安装包。\n',encoding='utf-8-sig')
+(packages/'Mac-Package-Status.txt').write_text(mac_status+'\n不要把 Windows EXE 或源码 ZIP 发给 Mac 用户作为安装包。\n',encoding='utf-8-sig')
 for p in (ROOT/'output/pdf').glob('*.pdf'):shutil.copy2(p,guides/p.name)
-shutil.copy2(ROOT/'docs'/f'ACCEPTANCE-{VERSION}.md',guides/'最终需求核对.md')
-(guides/'源码校验清单.json').write_text(json.dumps(manifest,ensure_ascii=False,indent=2),encoding='utf-8')
-(delivery/'先读我.txt').write_text(f'''Work Log {VERSION}
+shutil.copy2(ROOT/'docs'/f'ACCEPTANCE-{VERSION}.md',guides/'Acceptance-Checklist.md')
+(guides/'Source-Checksums.json').write_text(json.dumps(manifest,ensure_ascii=False,indent=2),encoding='utf-8')
+(delivery/'Read-Me-First.txt').write_text(f'''Work Log {VERSION}
 
 01-Source：干净源码及 Git 仓库，可继续修改并同步到公开仓库。
 02-Installers：Windows 安装包。{mac_status}
