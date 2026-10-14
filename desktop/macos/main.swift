@@ -164,6 +164,7 @@ final class JournalApp: NSObject, NSApplicationDelegate, WKNavigationDelegate, W
         let config = WKWebViewConfiguration(); config.defaultWebpagePreferences.allowsContentJavaScript = false
         printer = WKWebView(frame: NSRect(x: 0, y: 0, width: 794, height: 1123), configuration: config)
         printWindow = NSWindow(contentRect: printer!.frame, styleMask: [], backing: .buffered, defer: false)
+        printWindow?.isReleasedWhenClosed = false
         printWindow?.contentView = printer; printer?.navigationDelegate = self
         printer?.loadHTMLString(html, baseURL: URL(string: origin))
         exportTimer = Timer.scheduledTimer(withTimeInterval: 25, repeats: false) { _ in self.finishExport(false, "PDF 排版超时，请重试") }
@@ -177,7 +178,10 @@ final class JournalApp: NSObject, NSApplicationDelegate, WKNavigationDelegate, W
         info.isHorizontallyCentered = false; info.isVerticallyCentered = false
         info.jobDisposition = .save; info.dictionary()[NSPrintInfo.AttributeKey.jobSavingURL] = destination
         let operation = webView.printOperation(with: info); operation.showsPrintPanel = false; operation.showsProgressPanel = false
-        let ok = operation.run() && FileManager.default.fileExists(atPath: destination.path)
+        operation.runModal(for: window, delegate: self, didRun: #selector(printFinished(_:success:contextInfo:)), contextInfo: nil)
+    }
+    @objc func printFinished(_ operation: NSPrintOperation, success: Bool, contextInfo: UnsafeMutableRawPointer?) {
+        let ok = success && printDestination.map { FileManager.default.fileExists(atPath: $0.path) } == true
         finishExport(ok, ok ? "PDF 已保存" : "PDF 导出未完成，请重试")
     }
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) { if webView === printer { finishExport(false, "PDF 排版失败，请重试") } }
