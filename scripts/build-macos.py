@@ -67,6 +67,8 @@ def build(arch):
                 if item.is_file(): shutil.copy2(item, evidence/item.name)
             error = test_data/'smoke-error.txt'
             if error.exists(): print(error.read_text(), flush=True)
+            for crash in (Path.home()/'Library/Logs/DiagnosticReports').glob('WorkJournal*'):
+                if crash.is_file(): shutil.copy2(crash, evidence/crash.name)
         result = json.loads((test_data/'smoke-result.json').read_text())
         if not result.get('success'): raise RuntimeError(f'Desktop smoke test failed: {result}')
         if not (test_data/'report.pdf').read_bytes().startswith(b'%PDF-'): raise RuntimeError('PDF export missing')

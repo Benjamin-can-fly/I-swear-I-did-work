@@ -13,6 +13,7 @@ final class JournalApp: NSObject, NSApplicationDelegate, WKNavigationDelegate, W
     var printDestination: URL?
     var exportTimer: Timer?
     var exportBusy = false
+    var activePrintOperation: NSPrintOperation?
     var origin = "http://127.0.0.1:43171"
     var dataURL: URL!
     var launchOverlay: NSView?
@@ -178,11 +179,16 @@ final class JournalApp: NSObject, NSApplicationDelegate, WKNavigationDelegate, W
         info.isHorizontallyCentered = false; info.isVerticallyCentered = false
         info.jobDisposition = .save; info.dictionary()[NSPrintInfo.AttributeKey.jobSavingURL] = destination
         let operation = webView.printOperation(with: info); operation.showsPrintPanel = false; operation.showsProgressPanel = false
+        activePrintOperation = operation
         operation.runModal(for: window, delegate: self, didRun: #selector(printFinished(_:success:contextInfo:)), contextInfo: nil)
     }
     @objc func printFinished(_ operation: NSPrintOperation, success: Bool, contextInfo: UnsafeMutableRawPointer?) {
         let ok = success && printDestination.map { FileManager.default.fileExists(atPath: $0.path) } == true
-        finishExport(ok, ok ? "PDF 已保存" : "PDF 导出未完成，请重试")
+        // Keep WebKit's print view alive until AppKit has unwound its completion callback.
+        DispatchQueue.main.async {
+            self.activePrintOperation = nil
+            self.finishExport(ok, ok ? "PDF 已保存" : "PDF 导出未完成，请重试")
+        }
     }
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) { if webView === printer { finishExport(false, "PDF 排版失败，请重试") } }
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) { if webView === printer { finishExport(false, "PDF 排版失败，请重试") } }
