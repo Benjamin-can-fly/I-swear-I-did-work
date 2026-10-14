@@ -59,7 +59,14 @@ def build(arch):
         test_data = temp/'test-data'; test_data.mkdir()
         env = {**os.environ,'WORKJOURNAL_TEST_MODE':'1','WORKJOURNAL_PORT':'43172',
             'WORKJOURNAL_DATA_DIR':str(test_data),'WORKJOURNAL_TEST_SCRIPT':str(ROOT/'tests/desktop-smoke.js')}
-        run(macos/'WorkJournal',env=env,timeout=100)
+        evidence = ROOT/'artifacts'/f'macos-{arch}'; evidence.mkdir(parents=True,exist_ok=True)
+        try:
+            run(macos/'WorkJournal',env=env,timeout=150)
+        finally:
+            for item in test_data.iterdir():
+                if item.is_file(): shutil.copy2(item, evidence/item.name)
+            error = test_data/'smoke-error.txt'
+            if error.exists(): print(error.read_text(), flush=True)
         result = json.loads((test_data/'smoke-result.json').read_text())
         if not result.get('success'): raise RuntimeError(f'Desktop smoke test failed: {result}')
         if not (test_data/'report.pdf').read_bytes().startswith(b'%PDF-'): raise RuntimeError('PDF export missing')

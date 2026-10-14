@@ -12,7 +12,10 @@ $webview=Download-Checked 'https://api.nuget.org/v3-flatcontainer/microsoft.web.
 Expand-Archive -LiteralPath $webview -DestinationPath (Join-Path $deps 'webview2') -Force
 $nsis=Download-Checked 'https://github.com/electron-userland/electron-builder-binaries/releases/download/nsis-3.0.4.1/nsis-3.0.4.1.7z' 'nsis.7z' '9877DF902530F96357D13A7A31AE2B9DF67F48B11FFC9A1700A7C961574EC5FA'
 $nsisDir=Join-Path $deps 'nsis-packed';New-Item -ItemType Directory -Force $nsisDir | Out-Null
-tar -xf $nsis -C $nsisDir
+$sevenZip=(Get-Command 7z -ErrorAction SilentlyContinue).Source
+if(!$sevenZip -and (Test-Path "$env:ProgramFiles\7-Zip\7z.exe")){$sevenZip="$env:ProgramFiles\7-Zip\7z.exe"}
+if($sevenZip){& $sevenZip x $nsis "-o$nsisDir" -y | Out-Null}
+else {tar -xf $nsis -C $nsisDir}
 if($LASTEXITCODE -ne 0){throw 'NSIS extraction failed'}
 $bootstrap=Join-Path $deps 'MicrosoftEdgeWebview2Setup.exe'
 if(!(Test-Path -LiteralPath $bootstrap)){Invoke-WebRequest 'https://go.microsoft.com/fwlink/p/?LinkId=2124703' -OutFile $bootstrap -UseBasicParsing}

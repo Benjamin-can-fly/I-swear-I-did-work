@@ -62,7 +62,7 @@ final class JournalApp: NSObject, NSApplicationDelegate, WKNavigationDelegate, W
         host.addSubview(overlay); launchOverlay = overlay
         launchTicker = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in guard let self = self else { return }; elapsed.stringValue = String(format: "正在打开 · %.1f 秒", Date().timeIntervalSince(self.launchedAt)) }
         window.contentView = host; window.center()
-        if !testing { window.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true) }
+        window.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true)
         Task { await start(port: port) }
     }
 
