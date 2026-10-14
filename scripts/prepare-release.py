@@ -4,10 +4,10 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 VERSION=json.loads((ROOT/'package.json').read_text(encoding='utf-8-sig'))['version']
 desktop=Path(os.environ['USERPROFILE'])/'Desktop'
-delivery=desktop/f'Work Log_{VERSION}_上传准备'
-source=delivery/'01_上传到GitHub的源码'
-packages=delivery/'02_安装包'
-guides=delivery/'03_说明与核对'
+delivery=desktop/f'Work-Log-{VERSION}-Release'
+source=delivery/'01-Source'
+packages=delivery/'02-Installers'
+guides=delivery/'03-Guides'
 if source.exists():
  if '--refresh' not in sys.argv:raise SystemExit('Upload source already exists; use --refresh after reviewing changes.')
  if subprocess.check_output(['git','status','--porcelain'],cwd=source):raise SystemExit('Upload source has uncommitted changes; preserve them before refresh.')
@@ -57,9 +57,9 @@ shutil.copy2(ROOT/'docs'/f'ACCEPTANCE-{VERSION}.md',guides/'最终需求核对.m
 (guides/'源码校验清单.json').write_text(json.dumps(manifest,ensure_ascii=False,indent=2),encoding='utf-8')
 (delivery/'先读我.txt').write_text(f'''Work Log {VERSION}
 
-01_上传到GitHub的源码：干净源码及 Git 仓库，可继续修改并同步到公开仓库。
-02_安装包：Windows 安装包。{mac_status}
-03_说明与核对：17 页使用说明、5 页分享和 GitHub 教程、最终需求核对表。
+01-Source：干净源码及 Git 仓库，可继续修改并同步到公开仓库。
+02-Installers：Windows 安装包。{mac_status}
+03-Guides：17 页使用说明、5 页分享和 GitHub 教程、最终需求核对表。
 WorkJournal-{VERSION}-source.zip：干净源码备份。请解压后上传文件，不要只上传这个 ZIP 当仓库。
 
 用户名 Benjamin-can-fly；仓库 work-journal；公开；MIT。
@@ -67,7 +67,7 @@ WorkJournal-{VERSION}-source.zip：干净源码备份。请解压后上传文件
 本包不包含私人日志、附件、缓存或 API 密钥。
 公开源码：https://github.com/Benjamin-can-fly/work-journal
 安装包发布页：https://github.com/Benjamin-can-fly/work-journal/releases/tag/v{VERSION}
-桌面“Work Log”是日常使用入口；源项目仍在 E:\\工作日志。
+桌面“Work Log”是日常使用入口；源项目位于 {ROOT}。
 ''',encoding='utf-8-sig')
 # An initialized local repository makes GitHub Desktop's Add local repository unambiguous.
 for args in [['init','-b','main'],['config','user.name','Benjamin-can-fly'],['config','user.email','Benjamin-can-fly@users.noreply.github.com'],['add','--all']]:
