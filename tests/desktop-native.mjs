@@ -25,6 +25,11 @@ for(const reuse of [false,true]){
   assert.equal(result.success,true,JSON.stringify(result));
   assert.equal((await readFile(path.join(temp,'appearance/color.txt'),'utf8')).trim(),'#3566a0');
   assert.ok((await readFile(path.join(temp,'appearance/icon-3566a0.ico'))).length>1000);
+  assert.equal((await readFile(path.join(temp,'appearance/mode.txt'),'utf8')).trim(),'dark');
+  assert.equal((await readFile(path.join(temp,'appearance/language.txt'),'utf8')).trim(),'zh-CN');
+  const shellIcon=await readFile(path.join(temp,'appearance/desktop-v2-3566a0.ico'));
+  assert.equal(shellIcon.readUInt16LE(4),9,'Desktop icon must include all nine shell sizes');
+  for(let i=0;i<9;i++){const entry=6+16*i,offset=shellIcon.readUInt32LE(entry+12),size=shellIcon.readUInt32LE(entry+8);assert.ok(offset+size<=shellIcon.length);assert.equal(shellIcon.subarray(offset,offset+8).toString('hex'),'89504e470d0a1a0a');}
   const pdf=await readFile(path.join(temp,'report.pdf'));assert.equal(pdf.subarray(0,5).toString(),'%PDF-');
   if(reuse)assert.equal((await(await fetch(origin+'/api/status')).json()).version,version,'Reused server must survive window close');
   const evidence=path.join(root,'artifacts',`native-${version}-${reuse?'shared':'standalone'}`);await mkdir(evidence,{recursive:true});

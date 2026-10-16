@@ -8,7 +8,7 @@ export async function readUsage(){
  catch(e){if(e.code==='ENOENT')return {since:localDate(),days:{}};throw e;}
 }
 export function trackUsage(event){
- if(!['session','journal','tasks','timeline','dashboard','organize','summary','save'].includes(event))throw Error('无效统计事件');
+ if(!['session','today','journal','tasks','timeline','dashboard','organize','summary','save'].includes(event))throw Error('无效统计事件');
  const job=queue.catch(()=>{}).then(async()=>{
   const data=await readUsage(),date=localDate();data.days[date]??={};data.days[date][event]=(data.days[date][event]||0)+1;
   await mkdir(dir,{recursive:true});await writeFile(file+'.tmp',JSON.stringify(data),'utf8');await rename(file+'.tmp',file);return data;

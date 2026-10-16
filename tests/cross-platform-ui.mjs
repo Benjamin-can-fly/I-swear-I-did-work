@@ -9,7 +9,7 @@ const server=spawn(process.execPath,['server/index.js'],{env:{...process.env,DAT
 try{
  await new Promise((ok,no)=>{server.stdout.once('data',ok);server.once('error',no);});browser=await webkit.launch({headless:true});
  const page=await browser.newPage({viewport:{width:1440,height:960},timezoneId:'Asia/Shanghai'}),errors=[];
- page.on('pageerror',e=>errors.push(e.message));await page.goto(base);await page.locator('#record-form').waitFor();
+ page.on('pageerror',e=>errors.push(e.message));await page.goto(base);await page.locator('.sidebar [data-page=journal]').click();await page.locator('#record-form').waitFor();
  const go=async name=>{await page.locator('.sidebar [data-page='+name+']').click();await page.locator('#'+name+'-page').waitFor({state:'visible'});};
  const save=async kind=>{await page.locator(`#${kind}-form [type=submit]`).click();await page.waitForFunction(k=>document.querySelector(`#${k}-form textarea`).value===''&&!document.querySelector(`#${k}-form [type=submit]`).disabled,kind);};
  await page.locator('#raw-input').fill('完成活动海报初稿');await page.locator('#raw-input').press('Meta+Enter');await page.locator('#raw-input').press('End');await page.locator('#raw-input').pressSequentially('核对活动时间与报名入口，导出打印版。');assert.ok((await page.locator('#raw-input').inputValue()).includes('\n'));

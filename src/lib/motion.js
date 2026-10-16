@@ -1,4 +1,5 @@
 import {resizeTextareas} from './autosize.js';
+import {refreshDateHints} from './date-hints.js';
 import {taskCheck} from '../components/tasks.js';
 const reduced=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
 const running=new WeakMap(),folds=new WeakMap();
@@ -84,22 +85,23 @@ async function fold(summary){
  if(folds.get(details)!==state)return;
  details.open=open;details.style.overflow='';delete details.dataset.folding;folds.delete(details);
 }
-export function refreshMotion(){document.querySelectorAll(interactive).forEach(el=>el.dataset.motion=classify(el));document.querySelectorAll('.segmented').forEach(glider);resizeTextareas();}
+function navGlider(){const nav=document.querySelector('.sidebar nav'),active=nav?.querySelector('.nav-item.active'),slider=nav?.querySelector('.nav-indicator');if(active&&slider)Object.assign(slider.style,{transform:`translate(${active.offsetLeft}px,${active.offsetTop}px)`,width:active.offsetWidth+'px',height:active.offsetHeight+'px'});}
+export function refreshMotion(){refreshDateHints();document.querySelectorAll(interactive).forEach(el=>el.dataset.motion=classify(el));document.querySelectorAll('.segmented').forEach(glider);navGlider();resizeTextareas();}
 export function installMotion(){
  refreshMotion();
- document.addEventListener('pointerdown',e=>{const el=target(e);if(!el||el.disabled)return;if(['organize','save','create','summary'].includes(classify(el)))jellyPress(el);});
+ document.addEventListener('pointerdown',e=>{const el=target(e);if(!el||el.disabled)return;if(['organize','save','create','summary'].includes(classify(el))){if(e.button===0)try{el.setPointerCapture(e.pointerId);}catch{}jellyPress(el);}});
  const release=e=>{const el=target(e);if(el&&['organize','save','create','summary'].includes(classify(el)))jellyRelease(el);};
  document.addEventListener('pointerup',release);document.addEventListener('pointercancel',release);
  document.addEventListener('pointerout',e=>{const el=target(e);if(e.buttons&&el&&!el.contains(e.relatedTarget))release(e);});
  document.addEventListener('click',e=>{
-  const el=target(e);if(!el||el.disabled)return;const kind=classify(el);
+  const el=target(e);if(!el||el.disabled||el.hasAttribute('data-window'))return;const kind=classify(el);
   if(e.detail===0&&['organize','save','create','summary'].includes(kind))jelly.delete(el);
   if(kind==='fold'){e.preventDefault();void fold(el);return;}
   const previous=kind==='segment'?el.closest('.segmented')?.querySelector('button.selected')?.getBoundingClientRect():null;
   queueMicrotask(()=>activate(resolve(el),kind,previous));
  },true);
  document.addEventListener('change',e=>{const el=target(e);if(el)queueMicrotask(()=>activate(resolve(el),classify(el)));},true);
- window.addEventListener('resize',()=>document.querySelectorAll('.segmented').forEach(glider));
+ window.addEventListener('resize',()=>{document.querySelectorAll('.segmented').forEach(glider);navGlider();});
 }
 
 let pageAnimation,currentTransition,transitionVersion=0;

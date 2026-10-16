@@ -9,7 +9,7 @@ button,a,summary,.file-button{transition:background-color .18s,color .18s,box-sh
 nav[data-current=tasks] .nav-indicator{transform:translateY(50px)}
 .nav-item svg{transition:transform .5s var(--spring)}.nav-item:hover svg{transform:rotate(-8deg) scale(1.12)}
 .primary:hover svg{animation:spark-turn .6s var(--spring)}
-.segmented button:hover{background:var(--tone-e9f1e2,#e9f1e2);color:var(--tone-456d2e,#456d2e)}.segmented button.selected:hover{background:white}
+.segmented button:hover{background:var(--tone-e9f1e2,#e9f1e2);color:var(--tone-456d2e,#456d2e)}.segmented button.selected:hover{background:var(--surface,#fff)}
 .calendar button:hover{background:var(--tone-edf5e5,#edf5e5);color:var(--tone-3b6424,#3b6424);box-shadow:inset 0 0 0 1px var(--tone-dcebd0,#dcebd0)}
 .task-title:hover{color:var(--tone-537c37,#537c37)}.next-task:hover,.review-project button:hover{color:var(--tone-4b742e,#4b742e);background:var(--tone-f5f9ef,#f5f9ef);border-radius:5px}
 .task-check svg{stroke-dasharray:80;stroke-dashoffset:0;animation:check-in .46s ease-out}
@@ -32,7 +32,7 @@ input,textarea,select{transition:box-shadow .2s,border-color .2s,background .2s}
 @keyframes page-out{to{opacity:0;transform:translateX(calc(var(--page-shift) * -1))}}
 @keyframes page-in{from{opacity:0;transform:translateX(var(--page-shift))}to{opacity:1;transform:translateX(0)}}
 @media(prefers-reduced-motion:reduce){::view-transition-group(*),::view-transition-old(*),::view-transition-new(*){animation:none!important}}
-.segmented{position:relative;isolation:isolate}.segment-glider{position:absolute;z-index:-1;pointer-events:none;border-radius:5px;background:#fff;box-shadow:0 1px 5px #0000000c;transform-origin:left center}.has-glider button.selected,.has-glider button.selected:hover{background:transparent;box-shadow:none}.task-filters .segment-glider{background:var(--tone-edf3e9,#edf3e9)}
+.segmented{position:relative;isolation:isolate}.segment-glider{position:absolute;z-index:-1;pointer-events:none;border-radius:5px;background:var(--surface,#fff);box-shadow:0 1px 5px #0000000c;transform-origin:left center}.has-glider button.selected,.has-glider button.selected:hover{background:transparent;box-shadow:none}.task-filters .segment-glider{background:var(--tone-edf3e9,#edf3e9)}
 .ink-action{position:relative}.ink-action:after{content:'';position:absolute;left:0;right:0;bottom:1px;height:1px;background:currentColor;transform-origin:left;animation:ink-draw .4s ease-out both}
 @keyframes ink-draw{0%{transform:scaleX(0);opacity:0}65%{transform:scaleX(1);opacity:.75}100%{transform:scaleX(1);opacity:0}}
 summary{list-style:none}summary::-webkit-details-marker{display:none}summary:before{content:'›';display:inline-block;margin-right:6px;transform:rotate(0);transition:transform .28s cubic-bezier(.22,1,.36,1)}details[open]>summary:before,details[data-folding=open]>summary:before{transform:rotate(90deg)}details[data-folding=closed]>summary:before{transform:rotate(0)}

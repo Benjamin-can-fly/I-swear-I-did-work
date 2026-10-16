@@ -9,7 +9,7 @@ const server=spawn(process.execPath,['server/index.js'],{env:{...process.env,POR
 try{
  await new Promise((ok,no)=>{server.stdout.once('data',ok);server.once('error',no);});
  for(const engine of [chromium,webkit]){
-  browser=await engine.launch(engine===chromium?{channel:'msedge',headless:true}:{headless:true});const p=await browser.newPage();await p.clock.install({time:new Date('2026-10-13T09:21:00+08:00')});await p.goto(base);await p.locator('#record-form').waitFor();
+  browser=await engine.launch(engine===chromium?{channel:'msedge',headless:true}:{headless:true});const p=await browser.newPage();await p.clock.install({time:new Date('2026-10-13T09:21:00+08:00')});await p.goto(base);await p.locator('.sidebar [data-page=journal]').click();await p.locator('#record-form').waitFor();
   for(const kind of ['task','record']){
    const collection=kind==='task'?'tasks':'records',name=kind==='task'?'tasks':'journal',form='#'+kind+'-form';
    await p.evaluate(k=>localStorage.setItem('journal-inline-'+k+'-v1',JSON.stringify({item:{id:'deleted-'+k,status:'next'},values:{content:'删除之后仍应保留的文字 '+k,due:'',dueTime:'',date:'',time:'',status:'next',project:'恢复测试',autoSyncRecord:false,startedAt:'2026-10-13T09:00',priority:'normal',effort:'auto'},attachments:[],timingApplied:false,startedManually:false})),kind);

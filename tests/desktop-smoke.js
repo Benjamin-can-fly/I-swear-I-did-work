@@ -3,11 +3,13 @@
  const click=s=>{const el=document.querySelector(s);if(!el)throw Error('未找到 '+s);el.click();};
  try{
   if(!window.workJournalDesktop)throw Error('桌面桥接未注入');
+  if(document.querySelector('#today-page').hidden||document.querySelector('#page-title').textContent!=='今天该做些什么')throw Error('今日首页未生效');
   if(document.title!=='Work Log')throw Error('名称未统一');
-  click('.sidebar [data-appearance]');click('[data-accent="#3566a0"]');
+  click('.sidebar [data-page=settings]');await wait(()=>!document.querySelector('#settings-page').hidden);click('[data-accent="#3566a0"]');
   await wait(()=>getComputedStyle(document.documentElement).getPropertyValue('--green').trim()==='#3566a0');
-  click('[aria-label="关闭调色盘"]');
+  click('button[data-mode=dark]');await wait(()=>document.documentElement.dataset.mode==='dark');
   if(window.workJournalPlatform==='windows'&&document.querySelectorAll('.window-controls button').length!==3)throw Error('窗口按钮不完整');
+  click('.sidebar [data-page=journal]');await wait(()=>!document.querySelector('#journal-page').hidden);
   const content=document.querySelector('#raw-input');content.value='桌面保存验证\n保留详细过程与 16:32 的时间';content.dispatchEvent(new Event('input',{bubbles:true}));click('#organize');await wait(()=>content.value==='');
   click('.sidebar [data-page=timeline]');await wait(()=>document.querySelector('#open-report'));
   const now=new Date(),month=document.querySelector('#history-month');month.value=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');month.dispatchEvent(new Event('change',{bubbles:true}));click('#open-report');click('[data-report-unit=week]');click('[data-report-all]');
@@ -15,6 +17,7 @@
   click('#export-report-pdf');await result;
   const response=await fetch('/api/data'),data=(await response.json()).data;
   if(!data.records.some(r=>r.details.includes('桌面保存验证')))throw Error('保存未持久化');
+  click('.sidebar [data-page=today]');await wait(()=>!document.querySelector('#today-page').hidden);await new Promise(r=>setTimeout(r,650));
   window.__desktopTestResult={success:true,records:data.records.length,message:'Native save, palette, integrated window controls and direct PDF verified'};
  }catch(e){window.__desktopTestResult={success:false,error:e.message+'\n'+e.stack};}
  window.__desktopTestDone=true;

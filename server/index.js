@@ -27,7 +27,7 @@ http.createServer(async(req,res)=>{
   if(url.pathname==='/api/backup'&&req.method==='GET'){const data=await readData();return json(res,200,{...data,attachmentFiles:await exportAttachments(data)});}
   if(url.pathname==='/api/usage'&&req.method==='GET')return json(res,200,await readUsage());
   if(url.pathname==='/api/usage'&&req.method==='POST'){
-   const b=await body(req);if(!['session','journal','tasks','timeline','dashboard','save'].includes(b.event))throw Error('无效统计事件');
+   const b=await body(req);if(!['session','today','journal','tasks','timeline','dashboard','save'].includes(b.event))throw Error('无效统计事件');
    return json(res,200,await trackUsage(b.event));
   }
   if(url.pathname==='/api/data'&&req.method==='GET')return json(res,200,{data:await readData(),revision});

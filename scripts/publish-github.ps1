@@ -1,4 +1,4 @@
-﻿param([string]$Owner='Benjamin-can-fly',[string]$Repository='work-journal')
+﻿param([string]$Owner='Benjamin-can-fly',[string]$Repository='I-swear-I-did-work')
 $ErrorActionPreference='Stop'
 $projectRoot=Split-Path $PSScriptRoot -Parent
 Set-Location -LiteralPath $projectRoot

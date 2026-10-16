@@ -78,9 +78,9 @@ Windows 打包后：`node tests/desktop-native.mjs`，也可传入安装目录�
 
 ## 发布验证（2026-10-14）
 
-- GitHub 公开仓库：Benjamin-can-fly/work-journal，MIT。上传源码不包含私人记录和附件。
-- [Windows 云端验证](https://github.com/Benjamin-can-fly/work-journal/actions/runs/38491762027)：Windows x64 安装包构建、20 项逻辑测试、原生保存、调色盘和 PDF 测试通过。
-- [两个 Mac 架构验证](https://github.com/Benjamin-can-fly/work-journal/actions/runs/38493667867)：macOS 15 arm64 与 Intel runner 均完成逻辑测试、WebKit 界面测试、原生保存/主题/PDF 测试、应用签名完整性验证及 DMG 打包。
+- GitHub 公开仓库：Benjamin-can-fly/I-swear-I-did-work，MIT。上传源码不包含私人记录和附件。
+- [Windows 云端验证](https://github.com/Benjamin-can-fly/I-swear-I-did-work/actions/runs/38491762027)：Windows x64 安装包构建、20 项逻辑测试、原生保存、调色盘和 PDF 测试通过。
+- [两个 Mac 架构验证](https://github.com/Benjamin-can-fly/I-swear-I-did-work/actions/runs/38493667867)：macOS 15 arm64 与 Intel runner 均完成逻辑测试、WebKit 界面测试、原生保存/主题/PDF 测试、应用签名完整性验证及 DMG 打包。
 - 修复 Windows runner 的 LZMA 解压及 PowerShell 哈希计算兼容问题。
 - 修复 Mac 原生 PDF 打印阻塞及完成回调中提前释放打印对象造成的崩溃。
 - macOS 13.5 是兼容目标，未逐代系统实测；Windows 10 同样未单独实测。安装包未完成发布者签名及 Apple 公证。

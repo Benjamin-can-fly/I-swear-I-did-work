@@ -2,31 +2,32 @@
 <html lang="zh-CN">
 <head>
  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#ffffff">
- <meta name="description" content="工作记录、时间线与待办事项"><title>Work Log</title><link rel="icon" type="image/png" href="/src/assets/app-icon.png">
+ <meta name="description" content="工作记录、时间线与待办事项"><title>Work Log</title><link rel="icon" type="image/png" href="/src/assets/app-icon.png"><script src="/src/preferences-init.js"></script>
  <link rel="stylesheet" href="/src/styles/app.css"><link rel="stylesheet" href="/src/styles/responsive.css"><link rel="stylesheet" href="/src/styles/motion.css"><link rel="stylesheet" href="/src/styles/insights.css"><link rel="stylesheet" href="/src/styles/refinements.css"><link rel="stylesheet" href="/src/styles/timeline.css"><link rel="stylesheet" href="/src/styles/usability.css">
-<link rel="stylesheet" href="/src/styles/appearance.css"></head>
+<link rel="stylesheet" href="/src/styles/appearance.css"><link rel="stylesheet" href="/src/styles/today.css"><link rel="stylesheet" href="/src/styles/settings.css"></head>
 <body>
  <aside class="sidebar">
   <a class="brand" href="/" aria-label="Work Log 首页"><img class="brand-mark" src="/src/assets/app-icon.svg" alt="" width="40" height="40"><span class="brand-name">Work Log</span></a>
   <div class="sidebar-label">工作空间</div>
-  <nav aria-label="主导航" data-current="journal"><span class="nav-indicator" aria-hidden="true"></span><button class="nav-item active" data-page="journal"><span data-icon="book"></span>工作记录<span class="nav-dot"></span></button><button class="nav-item" data-page="tasks"><span data-icon="check"></span>待办事项<span id="task-count" class="count">0</span></button><button class="nav-item" data-page="timeline"><span data-icon="timeline"></span>时间线</button><button class="nav-item" data-page="dashboard"><span data-icon="chart"></span>数据后台</button><button class="nav-item" data-appearance aria-haspopup="dialog" aria-controls="appearance"><span data-icon="palette"></span>调色盘</button></nav>
+  <nav aria-label="主导航" data-current="today"><span class="nav-indicator" aria-hidden="true"></span><button class="nav-item active" data-page="today"><span data-icon="sun"></span>今日</button><button class="nav-item" data-page="journal"><span data-icon="book"></span>工作记录<span class="nav-dot"></span></button><button class="nav-item" data-page="tasks"><span data-icon="check"></span>待办事项<span id="task-count" class="count">0</span></button><button class="nav-item" data-page="timeline"><span data-icon="timeline"></span>时间线</button><button class="nav-item" data-page="dashboard"><span data-icon="chart"></span>数据后台</button><button class="nav-item" data-page="settings" aria-controls="settings-page"><span data-icon="settings"></span>设置</button></nav>
   <div class="sidebar-bottom"><button id="backup-open" class="text-button"><span data-icon="download"></span>数据与备份</button><div class="save-state" id="save-state"><i></i>数据保存在本机</div></div>
  </aside>
  <main>
   <header class="topbar"><div class="breadcrumb">工作空间<span>/</span><strong id="breadcrumb">工作记录</strong></div><span id="today-label"></span></header>
   <div class="workspace">
-   <section class="page-heading"><div><h1 id="page-title">工作记录</h1><p id="page-subtitle">按时间查看记录</p></div></section>
+   <section class="page-heading"><div><h1 id="page-title">今天该做些什么</h1><p id="page-subtitle">按时间查看记录</p></div></section>
    <section class="searchbar"><label class="search-field"><span data-icon="search"></span><input id="search" type="search" placeholder="搜索记录、原文、待办" aria-label="搜索全部内容"></label><select id="project-filter" aria-label="筛选项目"><option value="">全部项目</option></select><button id="clear-filter" class="text-button" hidden>清除筛选</button></section>
-   <div id="journal-page" class="page-panel">
+   <section id="today-page" class="page-panel" aria-label="今日"></section><div id="journal-page" class="page-panel" hidden>
     <div id="record-composer"></div>
     <div class="journal-layout"><section class="timeline-area"><div class="timeline-toolbar"><div class="segmented" aria-label="时间范围"><button data-view="day" class="selected">日</button><button data-view="week" title="按月查看各周">周</button><button data-view="month" title="按年查看各月重点">月</button></div><div class="date-controls"><button data-shift="-1" class="icon-button" aria-label="上一时段">‹</button><button id="calendar-open" class="icon-button" aria-label="日期检索与排序" title="日期检索与排序"><span data-icon="calendar"></span></button><button data-shift="1" class="icon-button" aria-label="下一时段">›</button><button id="go-today" class="text-button">今天</button></div></div><div class="timeline-heading"><h2 id="range-title"></h2><span id="record-count"></span></div><div class="timeline-scroll" tabindex="0" aria-label="记录列表"><div id="records"></div></div></section><aside class="review-column"><section class="review-card"><div class="section-kicker"><span data-icon="sun"></span><span id="review-title">当日汇总</span></div><div id="review"></div></section><section class="up-next"><div class="section-kicker">近期待办<button id="see-tasks" class="text-button">查看全部 ↗</button></div><div id="next-tasks"></div></section></aside></div>
    </div>
    <section id="tasks-page" class="page-panel" hidden>
-    <div id="task-composer"></div>
+    <div id="task-composer"></div><div id="daily-plans"></div>
     <div class="journal-layout task-layout"><section class="timeline-area"><div class="timeline-toolbar"><div class="segmented" aria-label="待办时间范围"><button data-task-view="day" class="selected">日</button><button data-task-view="week">周</button><button data-task-view="month">月</button></div><div class="date-controls"><button data-task-shift="-1" class="icon-button" aria-label="待办上一时段">‹</button><button id="task-calendar-open" class="icon-button" aria-label="待办日期检索"><span data-icon="calendar"></span></button><button data-task-shift="1" class="icon-button" aria-label="待办下一时段">›</button><button id="task-today" class="text-button">今天</button></div></div><div class="timeline-heading"><h2 id="task-range-title"></h2><span id="task-range-count"></span></div><div class="task-toolbar"><div class="task-filters segmented" aria-label="待办分类"><button data-task-filter="pending" class="selected">待处理 <span id="pending-count">0</span></button><button data-task-filter="paused">已搁置 <span id="paused-count">0</span></button><button data-task-filter="done">已完成 <span id="done-count">0</span></button></div><button id="clear-task-date" class="text-button">全部日期</button></div><div class="task-column-head"><span>截止时间</span><span>事项</span><span>执行时间 / 截止状态</span><span></span></div><div id="tasks" tabindex="0" aria-label="待办时间线"></div></section><aside class="review-column"><section class="review-card"><div class="section-kicker"><span data-icon="sun"></span><span id="task-review-title">当日汇总</span></div><div id="task-review"></div></section><section class="up-next"><div class="section-kicker">近期待办<button data-page="timeline" class="text-button">时间线 ↗</button></div><div id="task-next"></div></section></aside></div>
    </section>
    <section id="timeline-page" class="page-panel" aria-label="时间线" hidden></section>
    <section id="dashboard-page" class="page-panel" aria-label="数据后台" hidden></section>
+   <section id="settings-page" class="page-panel" aria-label="设置" hidden></section>
   </div>
   <footer><button class="text-button mobile-backup" id="mobile-backup">数据与备份 ↗</button></footer>
  </main>

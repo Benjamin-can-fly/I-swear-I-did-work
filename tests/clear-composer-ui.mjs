@@ -6,7 +6,7 @@ try{
  await new Promise((ok,no)=>{server.stdout.once('data',ok);server.once('error',no);});
  for(const engine of [chromium,webkit]){
   browser=await engine.launch(engine===chromium?{channel:'msedge',headless:true}:{headless:true});const p=await browser.newPage({viewport:{width:1280,height:850}});const errors=[];p.on('pageerror',e=>errors.push(e.message));
-  await p.clock.install({time:new Date('2026-10-13T09:21:00+08:00')});await p.goto(base);await p.locator('#record-form').waitFor();
+  await p.clock.install({time:new Date('2026-10-13T09:21:00+08:00')});await p.goto(base);await p.locator('.sidebar [data-page=journal]').click();await p.locator('#record-form').waitFor();
   assert.equal(await p.locator('.brand-mark').evaluate(el=>el.complete&&el.naturalWidth>0),true,'brand asset loads');
   await p.locator('#raw-input').fill('已保存记录不能被清空按钮删除');await p.locator('#organize').click();await p.waitForFunction(()=>!document.querySelector('#organize').disabled);
   const records=(await(await fetch(base+'/api/data')).json()).data.records;

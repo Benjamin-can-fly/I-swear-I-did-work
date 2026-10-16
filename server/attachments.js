@@ -21,6 +21,6 @@ export async function attachmentResponse(res,id,thumbnail=false){
  res.writeHead(200,{'Content-Type':type,'Content-Length':content.length,'Cache-Control':'private, max-age=86400','X-Content-Type-Options':'nosniff','Content-Security-Policy':"default-src 'none'; sandbox",'Content-Disposition':`${type.startsWith('image/')?'inline':'attachment'}; filename*=UTF-8''${encodeURIComponent(meta.name)}`});res.end(content);
 }
 export async function exportAttachments(data){
- const ids=[...new Set([...data.records,...data.tasks].flatMap(e=>(e.attachments||[]).map(a=>a.id)))];
+ const ids=[...new Set([...data.records,...data.tasks,...(data.routines||[])].flatMap(e=>(e.attachments||[]).map(a=>a.id)))];
  return Promise.all(ids.map(async id=>{if(!validId(id))throw Error('附件编号不正确');return {id,content:(await readFile(path.join(dir,id))).toString('base64')};}));
 }

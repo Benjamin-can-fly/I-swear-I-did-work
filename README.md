@@ -8,18 +8,20 @@ A local-first work journal for people who say “I’ll remember this” and abs
 
 Local-first work journal & to-do app · Windows / macOS · Timeline · PDF export
 
-[下载与版本](https://github.com/Benjamin-can-fly/work-journal/releases) · [安装说明](#下载与安装) · [参与开发](#开发与构建) · [MIT 许可证](LICENSE)
+[下载与版本](https://github.com/Benjamin-can-fly/I-swear-I-did-work/releases) · [安装说明](#下载与安装) · [参与开发](#开发与构建) · [MIT 许可证](LICENSE)
 
 </div>
 
-![工作记录首页，使用公开示例数据](docs/images/journal.png)
+![今日首页：今天该做些什么，使用示例数据](docs/images/today.png)
 
-> Windows x64、Mac 苹果芯片版和 Mac Intel 版均已完成构建及原生保存、调色盘、PDF 导出测试。安装包见 [0.2.2 发布页](https://github.com/Benjamin-can-fly/work-journal/releases/tag/v0.2.2)。
+> 已发布的 0.2.2 提供 Windows x64、Mac 苹果芯片与 Mac Intel 安装包。当前源码为 0.2.6，Windows 本机测试已通过；本次 Mac 改动通过了 WebKit 界面测试，仍待原生构建验证。公开安装包以 [发布页](https://github.com/Benjamin-can-fly/I-swear-I-did-work/releases/latest) 为准。
 
 ## 可以做什么
 
 | 功能 | 用法 |
 | --- | --- |
+| 今日与每日计划 | 打开就是“今天该做些什么”；每天重复的事项设置一次，各天独立完成并保留历史 |
+| 设置 | 侧栏中的完整页面，集中调整主题色、浅色／深色模式和中英界面；英文单独配置字体，用户内容保持原样 |
 | 工作记录 | 保存完整内容、发生时间、项目和附件，随时补记或修改 |
 | 待办事项 | 截止日期与星期联动，查看待处理、已搁置和已完成事项 |
 | 完成后同步 | 每条待办可开启“自动同步至工作记录”，完成、修改和回退自动关联 |
@@ -43,9 +45,17 @@ Local-first work journal & to-do app · Windows / macOS · Timeline · PDF expor
 
 0.2.2 新增保留时间与开关设置的清空按钮、统一应用图标，并修正 Windows 高分屏窗口尺寸、优化启动流程：本机两次首帧响应约 0.9 秒，完整可操作约 3.3 秒，加载期间显示进度与等待时间。此前已修复已删除条目的旧编辑草稿无法保存、无截止时间待办的日期显示为空等问题。“数据与备份”中可查看当前版本。详见[需求核对与验证范围](docs/ACCEPTANCE-0.2.2.md)，完整操作见[使用说明 PDF](output/pdf/Work-Log-User-Guide.pdf)。
 
+0.2.3 修复 Windows 桌面图标在重新启动后被旧缓存覆盖的问题，并同步仓库新名称。
+
+0.2.4 增加今日首页和每日计划，压缩顶部窗口栏，取消启动读秒，并改善窗口居中与启动动画。
+
+0.2.5 将调色盘整合为设置，新增深色模式和英文界面。颜色、明暗和语言分别保存；切换语言会保留编辑草稿与附件。日期、菜单、统计和 PDF 汇报使用所选语言，用户正文与文件名保持原样。
+
+0.2.6 将设置改为侧栏中的完整页面，外观、主题色和语言分区排列。小窗口下随整页滚动；切换语言后仍停留在设置页，未保存的记录与待办草稿继续保留。今日页标题也跟随界面语言：中文为“今天该做些什么”，英文为“What to do today?”。
+
 ## 下载与安装
 
-打开 [Releases](https://github.com/Benjamin-can-fly/work-journal/releases)，在 **Assets** 中选择安装包。**Source code (zip)** 是开发源码，普通使用者无需下载。
+打开 [Releases](https://github.com/Benjamin-can-fly/I-swear-I-did-work/releases)，在 **Assets** 中选择安装包。**Source code (zip)** 是开发源码，普通使用者无需下载。
 
 | 你的电脑 | 安装包标识 | 兼容目标与验证情况 |
 | --- | --- | --- |
@@ -72,6 +82,20 @@ Windows 32 位（x86）和 Windows ARM 原生版本暂不提供。同一处理�
 ## 界面预览
 
 <details>
+<summary><strong>设置：外观、主题色与界面语言</strong></summary>
+
+![完整设置页](docs/images/settings.png)
+
+</details>
+
+<details>
+<summary><strong>工作记录：保留过程、结果和附件</strong></summary>
+
+![工作记录](docs/images/journal.png)
+
+</details>
+
+<details>
 <summary><strong>待办事项：截止时间、状态与自动同步</strong></summary>
 
 ![待办事项](docs/images/tasks.png)
@@ -96,6 +120,8 @@ Windows 32 位（x86）和 Windows ARM 原生版本暂不提供。同一处理�
 
 ## 常用操作
 
+- 今日页集中显示今天的待办和每日计划；每日计划在“待办事项”里设置，每天的完成情况分别保留。
+- 侧栏 → **设置**：调整主题色、浅色／深色模式和中英界面，选择自动保存在当前设备。切换语言不会翻译你写下的内容。
 - 正文中 **Enter** 保存，**Ctrl + Enter** 换行，Mac 也支持 **Command + Enter**。
 - 图片和文档可以拖进输入区，也可以点击“添加图片或文件”。
 - 单击待办文字或勾选框标为完成；通过三点菜单修改、搁置或返回待处理。
@@ -151,7 +177,7 @@ Mac 构建会校验运行环境下载文件，编译原生窗口，运行实际�
 
 ## 参与项目
 
-欢迎通过 [Issues](https://github.com/Benjamin-can-fly/work-journal/issues) 报告问题或提出功能建议。请说明系统、软件版本、操作步骤和预期结果；截图请先去掉私人信息，不要提交个人备份或密钥。
+欢迎通过 [Issues](https://github.com/Benjamin-can-fly/I-swear-I-did-work/issues) 报告问题或提出功能建议。请说明系统、软件版本、操作步骤和预期结果；截图请先去掉私人信息，不要提交个人备份或密钥。
 
 提交修改前运行相关测试。界面、数据模型和本机服务共用同一套源码；Windows 与 Mac 仅在原生窗口、文件保存和打包入口上区分。
 
@@ -160,11 +186,3 @@ Mac 构建会校验运行环境下载文件，编译原生窗口，运行实际�
 [MIT](LICENSE) · Copyright © 2026 Benjamin-can-fly
 
 第三方组件保留各自许可证，见 [第三方说明](THIRD-PARTY-NOTICES.md)。
-
-
-
-### 外观与紧凑布局
-
-导航「数据后台」下面的「调色盘」可选择预设或自定义颜色。界面与图标同时换色，选择保存在当前设备。Windows 桌面图标跟随已安装应用更新；Mac Dock 图标随界面更新，Finder 安装图标保持默认绿色。
-
-时间线导出入口位于标题右侧；日期栏与任务卡片收紧，完成方框缩小并保留点击范围。Windows 窗口操作整合进界面；Mac 保留系统红黄绿按钮、隐藏重复标题。

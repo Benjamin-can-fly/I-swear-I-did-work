@@ -1,0 +1,56 @@
+/* One thin window toolbar, without a second page title or an outer close frame. */
+.topbar,[data-desktop=windows] .topbar,[data-desktop=mac] .topbar{height:32px;min-height:32px;padding:0 0 0 24px;border:0;justify-content:flex-end;background:var(--surface,#fff)}
+.topbar .breadcrumb,.topbar #today-label{display:none}
+.window-controls{height:32px;margin:0;align-self:auto}
+.window-controls button{display:grid;place-items:center;width:44px;height:32px;padding:0;font-size:16px;border:0;border-radius:0;box-shadow:none;background:transparent}
+.window-controls button svg{width:12px;height:12px;stroke-width:1.3}
+.window-controls button:focus-visible{outline-offset:-3px}
+.workspace{padding-top:10px;overflow:visible}
+.page-heading{min-height:51px;margin-bottom:10px}
+.inline-composer .clear-composer{background:transparent;border:0;border-radius:0;box-shadow:none}
+.inline-composer .clear-composer:hover{background:transparent;color:var(--green)}
+.dialog-heading [data-close],.dialog-heading>.icon-button{background:transparent;border:0;box-shadow:none}
+.expand-fields .expand-chevron{background:transparent}
+/* Animated icon/text must not become separate pointer targets during a press. */
+.primary>*{pointer-events:none}
+.today-overview{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:4px 0 22px;font-size:12px;color:var(--muted)}
+.today-add{display:flex;align-items:center;gap:8px;white-space:nowrap}
+.today-grid{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(260px,1fr);gap:32px;align-items:start}
+.today-list>header,.daily-card>header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-bottom:16px;border-bottom:1px solid var(--line)}
+.today-list>header>span,.daily-card>header>span{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.today-task{display:flex;align-items:flex-start;gap:12px;padding:16px 0;border-bottom:1px solid var(--line);min-width:0}
+.today-task .task-check{width:18px;height:18px;min-width:18px;margin-top:3px;border-radius:5px}
+.today-task .task-check .completion-mark{width:15px;height:15px}
+.today-task-body{flex:1;min-width:0}.today-task-title{display:block;text-align:left;line-height:1.6;padding:0;font-size:14px;overflow-wrap:anywhere}
+.today-task-body>p{font-size:12px;line-height:1.7;color:var(--muted);white-space:pre-wrap;overflow-wrap:anywhere;margin-top:5px}
+.today-task-body>small{display:block;font-size:10px;color:var(--muted);margin-top:6px}
+.today-task.completed .today-task-title{text-decoration:line-through;color:var(--muted)}
+.today-task.is-paused{opacity:.65}.today-task>.icon-button{padding:0 3px;min-width:24px;height:24px;color:var(--muted)}
+.daily-card{border:1px solid var(--line);background:var(--tone-f8faf8,#f8faf8);padding:21px 22px;border-radius:14px}
+.daily-eyebrow{display:block;letter-spacing:2px;font-size:9px;color:var(--muted);margin-bottom:7px}
+.daily-card .today-task:last-of-type{border-bottom:0}.daily-card .today-task-title{font-size:13px}
+.daily-manage{margin-top:14px}.today-empty{min-height:118px;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:12px;color:var(--muted);font-size:12px;line-height:1.7}
+.today-overdue{margin-top:22px}.today-overdue summary,.daily-plans summary{cursor:pointer;font-size:12px;color:var(--muted);padding:10px 0}.today-overdue summary span,.daily-plans summary span{margin-left:8px;font-variant-numeric:tabular-nums}
+.daily-plans{margin:0 0 18px;border-bottom:1px solid var(--line)}.daily-plans-body{padding:4px 0 14px}.daily-plan-row{display:flex;align-items:center;gap:14px;padding:13px 0;border-top:1px solid var(--line)}.daily-plan-row>div{flex:1;min-width:0}.daily-plan-row strong{font-size:12px;font-weight:500;overflow-wrap:anywhere}.daily-plan-row small{display:block;font-size:10px;color:var(--muted);margin-top:6px;line-height:1.7}
+.repeat-settings{display:flex;align-items:start;flex-wrap:wrap;gap:14px;background:var(--pale);border-radius:8px;padding:14px 16px;margin:0 0 12px}.repeat-settings .form-field{margin:0;flex:1 1 150px;max-width:230px}.repeat-settings input{width:100%}.repeat-settings p{flex-basis:100%;font-size:11px;color:var(--muted)}
+[data-active-page=today] .page-heading h1{font-size:28px;letter-spacing:-.5px}
+[data-active-page=today] .page-heading{margin-bottom:0}
+@media(max-width:1050px){.today-grid{gap:22px;grid-template-columns:minmax(0,1fr) minmax(240px,.9fr)}}
+@media(max-width:700px){
+ .sidebar nav{width:100%;flex-basis:100%;max-width:none;gap:3px;justify-content:space-between}.sidebar{flex-wrap:wrap}.sidebar nav .nav-item{width:calc((100% - 15px)/6);min-width:0;gap:2px;padding:0;font-size:10px}.sidebar nav .nav-indicator{width:calc((100% - 15px)/6)}
+ .sidebar nav .nav-item svg{width:12px;height:12px}.nav-item .count{display:none}
+ .today-grid{grid-template-columns:1fr;gap:22px}.daily-card{padding:18px}.today-overview{margin-bottom:18px}.daily-plan-row{flex-wrap:wrap;gap:10px}.daily-plan-row>div{flex-basis:100%}
+ [data-active-page=today] .page-heading h1{font-size:25px}.workspace{padding-top:7px}.topbar,[data-desktop=windows] .topbar{height:30px;min-height:30px;padding:0}.window-controls,.window-controls button{height:30px}
+}
+
+.repeat-enabled .composer-fields .form-grid:has([name=status]),.repeat-enabled .composer-fields .form-grid:has([name=completedAt]){display:none}
+.date-hint-wrap{position:relative;display:inline-grid;vertical-align:middle;min-width:0;max-width:100%}
+.date-hint-wrap>input{grid-area:1/1;min-width:0;width:100%}
+.date-empty-hint{display:none;position:absolute;left:12px;top:50%;transform:translateY(-50%);pointer-events:none;font:inherit;color:var(--muted);white-space:nowrap}
+.date-empty>.date-empty-hint{display:block}
+.date-empty>input::-webkit-datetime-edit{color:transparent}
+/* A partially typed date is invalid until all segments are entered: show those edits. */
+.date-empty:has(>input:invalid)>.date-empty-hint{display:none}
+.date-empty>input:invalid::-webkit-datetime-edit{color:inherit}
+.composer-meta .date-hint-wrap{max-width:118px;font-size:11px}
+.composer-meta .date-empty-hint{left:0}

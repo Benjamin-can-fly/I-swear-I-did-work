@@ -17,8 +17,16 @@ final class JournalApp: NSObject, NSApplicationDelegate, WKNavigationDelegate, W
     var origin = "http://127.0.0.1:43171"
     var dataURL: URL!
     var launchOverlay: NSView?
-    var launchTicker: Timer?
-    let launchedAt = Date()
+    var english = false
+    var darkMode = false
+    func nativeText(_ zh: String, _ en: String) -> String { english ? en : zh }
+    func appearanceURL(_ name: String) -> URL { (testing ? dataURL : dataURL.deletingLastPathComponent()).appendingPathComponent("appearance").appendingPathComponent(name) }
+    func applyAppearance() {
+        let appearance = NSAppearance(named: darkMode ? .darkAqua : .aqua)
+        NSApp.appearance = appearance; window?.appearance = appearance
+        window?.backgroundColor = darkMode ? NSColor(calibratedRed: 0.067, green: 0.094, blue: 0.078, alpha: 1) : .white
+        if #available(macOS 12.0, *) { web?.underPageBackgroundColor = window?.backgroundColor ?? .white }
+    }
     func trace(_ text: String) { if testing { FileHandle.standardError.write(Data((text + "\n").utf8)) } }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -28,11 +36,14 @@ final class JournalApp: NSObject, NSApplicationDelegate, WKNavigationDelegate, W
         origin = "http://127.0.0.1:\(port)"
         dataURL = env["WORKJOURNAL_DATA_DIR"].map { URL(fileURLWithPath: $0) }
             ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("WorkJournal/data")
+        english = (try? String(contentsOf: appearanceURL("language.txt"), encoding: .utf8)) == "en"
+        darkMode = (try? String(contentsOf: appearanceURL("mode.txt"), encoding: .utf8)) == "dark"
+        NSApp.appearance = NSAppearance(named: darkMode ? .darkAqua : .aqua)
         let menu = NSMenu(), appItem = NSMenuItem(), appMenu = NSMenu()
-        appMenu.addItem(withTitle: "退出Work Log", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        appMenu.addItem(withTitle: nativeText("退出Work Log", "Quit Work Log"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         appItem.submenu = appMenu; menu.addItem(appItem)
-        let editItem = NSMenuItem(), editMenu = NSMenu(title: "编辑")
-        for (title, action, key) in [("撤销", "undo:", "z"), ("剪切", "cut:", "x"), ("复制", "copy:", "c"), ("粘贴", "paste:", "v"), ("全选", "selectAll:", "a")] {
+        let editItem = NSMenuItem(), editMenu = NSMenu(title: nativeText("编辑", "Edit"))
+        for (title, action, key) in [(nativeText("撤销", "Undo"), "undo:", "z"), (nativeText("剪切", "Cut"), "cut:", "x"), (nativeText("复制", "Copy"), "copy:", "c"), (nativeText("粘贴", "Paste"), "paste:", "v"), (nativeText("全选", "Select All"), "selectAll:", "a")] {
             editMenu.addItem(withTitle: title, action: Selector(action), keyEquivalent: key)
         }
         editItem.submenu = editMenu; menu.addItem(editItem); NSApp.mainMenu = menu
@@ -50,21 +61,21 @@ final class JournalApp: NSObject, NSApplicationDelegate, WKNavigationDelegate, W
         web = WKWebView(frame: .zero, configuration: config)
         web.navigationDelegate = self; web.uiDelegate = self
         window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1280, height: 850), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
+        applyAppearance()
         window.title = "Work Log"; window.minSize = NSSize(width: 380, height: 440)
         window.titleVisibility = .hidden; window.titlebarAppearsTransparent = true; window.styleMask.insert(.fullSizeContentView)
         let host = NSView(frame: NSRect(x: 0, y: 0, width: 1280, height: 850))
         web.frame = host.bounds; web.autoresizingMask = [.width, .height]; host.addSubview(web)
         let overlay = NSView(frame: host.bounds); overlay.autoresizingMask = [.width, .height]; overlay.wantsLayer = true
-        overlay.layer?.backgroundColor = NSColor(calibratedRed: 0.973, green: 0.98, blue: 0.973, alpha: 1).cgColor
+        overlay.layer?.backgroundColor = (window.backgroundColor).cgColor
         let logo = NSImageView(); logo.image = NSApp.applicationIconImage
         logo.widthAnchor.constraint(equalToConstant: 64).isActive = true; logo.heightAnchor.constraint(equalToConstant: 64).isActive = true
         let title = NSTextField(labelWithString: "Work Log"); title.font = .systemFont(ofSize: 22, weight: .medium)
-        let elapsed = NSTextField(labelWithString: "正在打开 · 0.0 秒"); elapsed.font = .systemFont(ofSize: 12); elapsed.textColor = .secondaryLabelColor
+        let status = NSTextField(labelWithString: nativeText("正在打开", "Opening")); status.font = .systemFont(ofSize: 12); status.textColor = .secondaryLabelColor
         let progress = NSProgressIndicator(); progress.style = .bar; progress.isIndeterminate = true; progress.widthAnchor.constraint(equalToConstant: 150).isActive = true; progress.startAnimation(nil)
-        let stack = NSStackView(views: [logo, title, elapsed, progress]); stack.orientation = .vertical; stack.spacing = 14; stack.translatesAutoresizingMaskIntoConstraints = false
+        let stack = NSStackView(views: [logo, title, status, progress]); stack.orientation = .vertical; stack.spacing = 14; stack.translatesAutoresizingMaskIntoConstraints = false
         overlay.addSubview(stack); NSLayoutConstraint.activate([stack.centerXAnchor.constraint(equalTo: overlay.centerXAnchor), stack.centerYAnchor.constraint(equalTo: overlay.centerYAnchor)])
         host.addSubview(overlay); launchOverlay = overlay
-        launchTicker = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in guard let self = self else { return }; elapsed.stringValue = String(format: "正在打开 · %.1f 秒", Date().timeIntervalSince(self.launchedAt)) }
         window.contentView = host; window.center()
         window.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true)
         Task { await start(port: port) }
@@ -73,7 +84,7 @@ final class JournalApp: NSObject, NSApplicationDelegate, WKNavigationDelegate, W
     @MainActor func start(port: Int) async {
         do {
             try FileManager.default.createDirectory(at: dataURL, withIntermediateDirectories: true)
-            guard let resources = Bundle.main.resourceURL else { throw failure("安装文件不完整") }
+            guard let resources = Bundle.main.resourceURL else { throw failure(nativeText("安装文件不完整", "The installation is incomplete.")) }
             let appRoot = resources.appendingPathComponent("app"), token = UUID().uuidString
             server.executableURL = resources.appendingPathComponent("runtime/node")
             server.arguments = [appRoot.appendingPathComponent("server/index.js").path]
@@ -89,12 +100,12 @@ final class JournalApp: NSObject, NSApplicationDelegate, WKNavigationDelegate, W
             defer { session.invalidateAndCancel() }
             var ready = false
             for _ in 0..<100 {
-                if !server.isRunning { throw failure("本机服务无法启动，请检查是否已有Work Log正在运行。") }
+                if !server.isRunning { throw failure(nativeText("本机服务无法启动，请检查是否已有Work Log正在运行。", "The local service could not start. Check whether Work Log is already running.")) }
                 if let (bytes, _) = try? await session.data(from: URL(string: origin + "/api/status")!),
                    let status = try? JSONSerialization.jsonObject(with: bytes) as? [String: Any], status["instance"] as? String == token { ready = true; break }
                 try await Task.sleep(nanoseconds: 100_000_000)
             }
-            guard ready else { throw failure("启动超时，请关闭后重新打开。") }
+            guard ready else { throw failure(nativeText("启动超时，请关闭后重新打开。", "Startup timed out. Close Work Log and try again.")) }
             trace("native: backend ready")
             web.load(URLRequest(url: URL(string: origin)!))
             if testing { await smoke() }
@@ -104,7 +115,7 @@ final class JournalApp: NSObject, NSApplicationDelegate, WKNavigationDelegate, W
     func failStartup(_ error: Error) {
         trace("native failure: \(error)")
         if testing { try? String(describing: error).write(to: dataURL.appendingPathComponent("smoke-error.txt"), atomically: true, encoding: .utf8) }
-        else { let a = NSAlert(); a.messageText = "无法打开Work Log"; a.informativeText = error.localizedDescription; a.runModal() }
+        else { let a = NSAlert(); a.messageText = nativeText("无法打开Work Log", "Unable to open Work Log"); a.informativeText = error.localizedDescription; a.runModal() }
         NSApp.terminate(nil)
     }
     func local(_ url: URL?) -> Bool { guard let url = url else { return false }; return url.scheme == "http" && url.host == "127.0.0.1" && url.port == URL(string: origin)?.port }
@@ -137,13 +148,27 @@ final class JournalApp: NSObject, NSApplicationDelegate, WKNavigationDelegate, W
         guard local(action.request.url) else { return nil }
         let viewer = WKWebView(frame: .zero, configuration: configuration); viewer.navigationDelegate = self; viewer.uiDelegate = self
         let child = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 700), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
-        child.title = "附件 · Work Log"; child.contentView = viewer; child.isReleasedWhenClosed = false
+        child.title = nativeText("附件 · Work Log", "Attachment · Work Log"); child.contentView = viewer; child.isReleasedWhenClosed = false
         children.removeAll { !$0.isVisible }; children.append(child); child.center(); child.makeKeyAndOrderFront(nil); return viewer
     }
     func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
         guard message.frameInfo.isMainFrame, local(message.frameInfo.request.url), message.webView === web,
               let body = message.body as? [String: Any] else { return }
-        if body["type"] as? String == "app-ready" { launchOverlay?.removeFromSuperview(); launchOverlay = nil; launchTicker?.invalidate(); launchTicker = nil; return }
+        if body["type"] as? String == "app-ready" { launchOverlay?.removeFromSuperview(); launchOverlay = nil; return }
+        if body["type"] as? String == "set-preferences", let mode = body["mode"] as? String, let language = body["language"] as? String, ["dark", "light"].contains(mode), ["en", "zh-CN"].contains(language) {
+            darkMode = mode == "dark"; english = language == "en"
+            try? FileManager.default.createDirectory(at: appearanceURL("mode.txt").deletingLastPathComponent(), withIntermediateDirectories: true)
+            try? mode.write(to: appearanceURL("mode.txt"), atomically: true, encoding: .utf8)
+            try? language.write(to: appearanceURL("language.txt"), atomically: true, encoding: .utf8)
+            applyAppearance()
+            if let items = NSApp.mainMenu?.items, items.count > 1 {
+                items[0].submenu?.items.first?.title = nativeText("退出Work Log", "Quit Work Log")
+                items[1].submenu?.title = nativeText("编辑", "Edit")
+                let labels = [("撤销", "Undo"), ("剪切", "Cut"), ("复制", "Copy"), ("粘贴", "Paste"), ("全选", "Select All")]
+                for (i, label) in labels.enumerated() { items[1].submenu?.items[i].title = nativeText(label.0, label.1) }
+            }
+            return
+        }
         if body["type"] as? String == "set-theme" {
             if let encoded = body["png"] as? String, encoded.count < 150000,
                let data = Data(base64Encoded: encoded), let icon = NSImage(data: data) { NSApp.applicationIconImage = icon }

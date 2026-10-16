@@ -1,8 +1,9 @@
+import {locale} from './i18n.js';
 export const localDate = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 export const parseDate = s => new Date(`${s}T12:00:00`);
 export const addDays = (s,n) => { const d=parseDate(s); d.setDate(d.getDate()+n); return localDate(d); };
 export const validDate = s => typeof s==='string' && /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(parseDate(s)) && localDate(parseDate(s))===s;
-export const prettyDate = s => parseDate(s).toLocaleDateString('zh-CN',{month:'long',day:'numeric',weekday:'long'});
+export const prettyDate = s => parseDate(s).toLocaleDateString(locale(),{month:'long',day:'numeric',weekday:'long'});
 export function rangeFor(date,view) {
   if(view==='day') return [date,date];
   const d=parseDate(date);
@@ -22,3 +23,5 @@ export function inferDate(text,base) {
   if(/昨天/.test(text)) return addDays(base,-1);
   return base;
 }
+
+export const monthLabel=s=>parseDate(s).toLocaleDateString(locale(),{year:'numeric',month:'long'});

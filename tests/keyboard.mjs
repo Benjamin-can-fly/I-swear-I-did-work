@@ -9,7 +9,7 @@ const server=spawn(process.execPath,['server/index.js'],{env:{...process.env,DAT
 let browser;const errors=[];
 try{
  await new Promise((resolve,reject)=>{server.stdout.once('data',resolve);server.once('error',reject);});
- browser=await chromium.launch({channel:'msedge',headless:true});const p=await browser.newPage();p.on('pageerror',e=>errors.push(e.message));await p.goto(base);await p.locator('#record-form').waitFor();
+ browser=await chromium.launch({channel:'msedge',headless:true});const p=await browser.newPage();p.on('pageerror',e=>errors.push(e.message));await p.goto(base);await p.locator('.sidebar [data-page=journal]').click();await p.locator('#record-form').waitFor();
  await p.waitForTimeout(200);
  for(const [page,form,input,key,collection] of [['journal','#record-form','#raw-input','journal-inline-record-v1','records'],['tasks','#task-form','#task-input','journal-inline-task-v1','tasks']]){
   await p.locator(`[data-page=${page}]`).click();const editor=p.locator(input);await editor.fill('第一行第二行');await editor.evaluate(el=>el.setSelectionRange(3,3));await editor.press('Control+Enter');assert.equal(await editor.inputValue(),'第一行\n第二行');assert.equal(await p.locator('dialog[open]').count(),0);

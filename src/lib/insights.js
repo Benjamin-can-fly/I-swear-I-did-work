@@ -1,3 +1,4 @@
+import {tr} from './i18n.js';
 import {localDate,parseDate,addDays,rangeFor} from './dates.js';
 
 export function reviewRange(date,view){
@@ -20,14 +21,14 @@ export function monthWeeks(date){
 // Small transparent classifier, not an LLM or a measure of personal performance.
 export function inferEffort(record){
  const text=[record.title,record.details].join(' ');
- if(/编程|调试|建模|推导|设计|论文|分析|研究/.test(text))return {level:'high',label:'分析 / 创作',weight:1.25};
- if(/整理|归档|录入|报销|预约|签到/.test(text))return {level:'light',label:'事务处理',weight:.8};
- return {level:'normal',label:'一般工作',weight:1};
+ if(/编程|调试|建模|推导|设计|论文|分析|研究|\b(coding|programming|debugging|modeling|modelling|design|thesis|analysis|analyze|analyse|research)\b/i.test(text))return {level:'high',label:tr('分析 / 创作'),weight:1.25};
+ if(/整理|归档|录入|报销|预约|签到|\b(filing|archiving|data entry|expenses|booking|check-in)\b/i.test(text))return {level:'light',label:tr('事务处理'),weight:.8};
+ return {level:'normal',label:tr('一般工作'),weight:1};
 }
-export const effortOptions={auto:'按内容估算',light:'较轻',normal:'一般',high:'较高'};
+export const effortOptions={auto:tr('按内容估算'),light:tr('较轻'),normal:tr('一般'),high:tr('较高')};
 export function effortFor(r){
- if(r.effort&&r.effort!=='auto')return {level:r.effort,label:effortOptions[r.effort],weight:{light:.8,normal:1,high:1.25}[r.effort],source:'手动'};
- return {...inferEffort(r),source:'内容估算'};
+ if(r.effort&&r.effort!=='auto')return {level:r.effort,label:effortOptions[r.effort],weight:{light:.8,normal:1,high:1.25}[r.effort],source:tr('手动')};
+ return {...inferEffort(r),source:tr('内容估算')};
 }
 export function dailyLoad(records){
  const timed=records.filter(r=>Number.isFinite(r.durationMinutes)&&r.durationMinutes>0);

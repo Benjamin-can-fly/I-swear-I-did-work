@@ -8,7 +8,7 @@ const dir=await mkdtemp(path.join(tmpdir(),'journal-sync-')),base='http://127.0.
 const server=spawn(process.execPath,['server/index.js'],{env:{...process.env,DATA_DIR:dir,PORT:'4323'},stdio:'pipe'});let browser;
 const read=async()=> (await (await fetch(base+'/api/data')).json()).data;
 try{
- await new Promise((ok,no)=>{server.stdout.once('data',ok);server.once('error',no);});browser=await chromium.launch({channel:'msedge',headless:true});const p=await browser.newPage({viewport:{width:1440,height:900}});await p.goto(base);await p.locator('#record-form').waitFor();
+ await new Promise((ok,no)=>{server.stdout.once('data',ok);server.once('error',no);});browser=await chromium.launch({channel:'msedge',headless:true});const p=await browser.newPage({viewport:{width:1440,height:900}});await p.goto(base);await p.locator('.sidebar [data-page=journal]').click();await p.locator('#record-form').waitFor();
  const go=async page=>{await p.locator('.sidebar [data-page='+page+']').click();await p.locator('#'+page+'-page').waitFor({state:'visible'});};
  const menu=async(scope,id,label)=>{await p.locator(`${scope} [data-entry-id="${id}"]`).click();await p.getByRole('menuitem',{name:label,exact:true}).click();};
  const save=async kind=>{await p.locator(`#${kind}-form [type=submit]`).click();await p.waitForFunction(k=>!document.querySelector(`#${k}-form [type=submit]`).disabled&&!document.querySelector(`#${k}-form textarea`).value,kind);};

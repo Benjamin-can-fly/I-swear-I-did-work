@@ -8,7 +8,7 @@ const dir=await mkdtemp(path.join(tmpdir(),'journal-timeline-')),base='http://12
 const server=spawn(process.execPath,['server/index.js'],{env:{...process.env,DATA_DIR:dir,PORT:'4320'},stdio:'pipe'});let browser;
 const read=async()=> (await (await fetch(base+'/api/data')).json()).data;
 try{
- await new Promise((resolve,reject)=>{server.stdout.once('data',resolve);server.once('error',reject);});browser=await chromium.launch({channel:'msedge',headless:true});const p=await browser.newPage({viewport:{width:1440,height:900},locale:'zh-CN',timezoneId:'Asia/Shanghai'}),errors=[];p.on('pageerror',e=>errors.push(e.message));await p.clock.install({time:new Date('2026-10-13T09:00:00+08:00')});await p.goto(base);await p.locator('#record-form').waitFor();
+ await new Promise((resolve,reject)=>{server.stdout.once('data',resolve);server.once('error',reject);});browser=await chromium.launch({channel:'msedge',headless:true});const p=await browser.newPage({viewport:{width:1440,height:900},locale:'zh-CN',timezoneId:'Asia/Shanghai'}),errors=[];p.on('pageerror',e=>errors.push(e.message));await p.clock.install({time:new Date('2026-10-13T09:00:00+08:00')});await p.goto(base);await p.locator('.sidebar [data-page=journal]').click();await p.locator('#record-form').waitFor();
  const go=async page=>{await p.locator('.sidebar [data-page='+page+']').click();await p.locator('#'+page+'-page').waitFor({state:'visible'});};
  const save=async id=>{await p.locator(id).click();await p.waitForFunction(s=>!document.querySelector(s).disabled,id);};
  const journalCalendar=await p.locator('#calendar-open').boundingBox(),journalReview=await p.locator('#journal-page .review-card').boundingBox();

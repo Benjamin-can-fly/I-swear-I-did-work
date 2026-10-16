@@ -1,3 +1,4 @@
+import {tr} from './i18n.js';
 import {esc} from './ui.js';
 let anchor=null,menu=null;
 function positionMenu(){
@@ -14,7 +15,7 @@ export function openEntryMenu(button,actions){
  if(anchor===button){closeEntryMenu(true);return;}
  closeEntryMenu();anchor=button;
  if(!menu){
-  menu=document.createElement('div');menu.id='entry-menu';menu.className='entry-menu';menu.setAttribute('role','menu');menu.setAttribute('aria-label','条目操作');document.body.append(menu);
+  menu=document.createElement('div');menu.id='entry-menu';menu.className='entry-menu';menu.setAttribute('role','menu');menu.setAttribute('aria-label',tr('条目操作'));document.body.append(menu);
   document.addEventListener('pointerdown',e=>{if(!menu.contains(e.target)&&!anchor?.contains(e.target))closeEntryMenu();});
   document.addEventListener('keydown',e=>{if(!anchor)return;if(e.key==='Escape'){e.preventDefault();e.stopPropagation();closeEntryMenu(true);}else if(['ArrowDown','ArrowUp','Home','End'].includes(e.key)){e.preventDefault();const items=[...menu.querySelectorAll('button')],i=items.indexOf(document.activeElement);items[e.key==='Home'?0:e.key==='End'?items.length-1:(i+(e.key==='ArrowDown'?1:items.length-1))%items.length].focus();}else if(e.key==='Tab')closeEntryMenu();},true);
   window.addEventListener('resize',positionMenu);document.addEventListener('scroll',positionMenu,true);

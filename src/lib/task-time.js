@@ -1,3 +1,4 @@
+import {tr} from './i18n.js';
 import {localDate} from './dates.js';
 import {deadlineValue} from './deadlines.js';
 
@@ -6,7 +7,7 @@ export function localMinute(value){
  const d=new Date(value);if(!Number.isFinite(d.getTime()))return '';
  return `${localDate(d)}T${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
 }
-export const displayMinute=value=>localMinute(value).replace('T',' ')||'未记录';
+export const displayMinute=value=>localMinute(value).replace('T',' ')||tr('未记录');
 export function setTaskStatus(task,status,at=new Date().toISOString()){
  const result={...task,status};
  if(status==='done'&&task.status!=='done')result.completedAt=at;

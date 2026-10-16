@@ -19,13 +19,14 @@ packages.mkdir(parents=True,exist_ok=True);guides.mkdir(parents=True,exist_ok=Tr
 files=[]
 for name in ['src','server','desktop','.github']:
  files.extend(p for p in (ROOT/name).rglob('*') if p.is_file() and '__pycache__' not in p.parts)
-for name in ['package.json','package-lock.json','index.html','report.html','README.md','LICENSE','THIRD-PARTY-NOTICES.md','.gitignore','.env.example','Start-Work-Log.cmd','Stop-Work-Log.cmd','Publish-to-GitHub.cmd']:
+for name in ['package.json','package-lock.json','index.html','report.html','README.md','LICENSE','THIRD-PARTY-NOTICES.md','.gitattributes','.gitignore','.env.example','Start-Work-Log.cmd','Stop-Work-Log.cmd','Publish-to-GitHub.cmd']:
  files.append(ROOT/name)
 for name in ['render-icon.mjs','build-icons.py','build-desktop.ps1','build-macos.py','setup-desktop.ps1','start.ps1','stop.ps1','publish-github.ps1','prepare-release.py','create-guide.py','create-github-guide.py']:
  files.append(ROOT/'scripts'/name)
 for p in (ROOT/'tests').iterdir():
  if p.is_file() and p.name!='interaction.mjs':files.append(p)
-for name in ['DEVELOPMENT.md',f'ACCEPTANCE-{VERSION}.md']:files.append(ROOT/'docs'/name)
+files.append(ROOT/'docs/DEVELOPMENT.md')
+files.extend((ROOT/'docs').glob('ACCEPTANCE-*.md'))
 files.extend((ROOT/'docs/images').glob('*.png'))
 files.extend((ROOT/'output/pdf').glob('*.pdf'))
 manifest={}
@@ -67,11 +68,11 @@ shutil.copy2(ROOT/'docs'/f'ACCEPTANCE-{VERSION}.md',guides/'Acceptance-Checklist
 03-Guides：17 页使用说明、5 页分享和 GitHub 教程、最终需求核对表。
 WorkJournal-{VERSION}-source.zip：干净源码备份。请解压后上传文件，不要只上传这个 ZIP 当仓库。
 
-用户名 Benjamin-can-fly；仓库 work-journal；公开；MIT。
+用户名 Benjamin-can-fly；仓库 I-swear-I-did-work；公开；MIT。
 后续更新可运行 Actions 中的 Build desktop previews，验证后再发布新版。
 本包不包含私人日志、附件、缓存或 API 密钥。
-公开源码：https://github.com/Benjamin-can-fly/work-journal
-安装包发布页：https://github.com/Benjamin-can-fly/work-journal/releases/tag/v{VERSION}
+公开源码：https://github.com/Benjamin-can-fly/I-swear-I-did-work
+安装包发布页：https://github.com/Benjamin-can-fly/I-swear-I-did-work/releases/tag/v{VERSION}
 桌面“Work Log”是日常使用入口；源项目位于 {ROOT}。
 ''',encoding='utf-8-sig')
 # An initialized local repository makes GitHub Desktop's Add local repository unambiguous.
