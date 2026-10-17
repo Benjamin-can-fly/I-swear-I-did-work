@@ -13,7 +13,7 @@ main{height:auto;min-height:100dvh}
 .inline-composer .section-kicker .cancel-edit{margin-left:auto;font-size:11px;padding:5px 8px}
 .inline-composer .clear-composer{margin-left:auto;width:28px;height:28px;border-radius:9px;background:var(--tone-f4f7f2,#f4f7f2);color:var(--tone-82917f,#82917f);display:grid;place-items:center}
 .inline-composer .cancel-edit:not([hidden])+.clear-composer{margin-left:0}
-.clear-composer svg{width:16px;height:16px}.clear-composer:hover{background:var(--tone-eaf0e5,#eaf0e5);color:var(--tone-486445,#486445);animation:close-wiggle .65s ease-in-out}
+.clear-composer svg{width:16px;height:16px}.clear-composer:hover{background:var(--tone-eaf0e5,#eaf0e5);color:var(--tone-486445,#486445);animation:close-wiggle .18s ease-out}
 .inline-composer .composer-footer{position:static;flex-wrap:wrap;gap:12px;padding-bottom:4px}
 .inline-composer:has(.composer-fields:not([hidden])) .composer-footer{box-shadow:none}
 .inline-composer .composer-meta{display:flex;flex-wrap:wrap;gap:10px 14px;flex:1 1 450px;min-width:0}

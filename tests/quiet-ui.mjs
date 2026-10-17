@@ -1,0 +1,45 @@
+import {chromium,webkit} from '@playwright/test';
+import assert from 'node:assert/strict';
+import {spawn} from 'node:child_process';
+import {mkdtemp,mkdir,writeFile} from 'node:fs/promises';
+import os from 'node:os';import path from 'node:path';
+import {saveDailyPlan} from '../src/lib/daily.js';
+const dir=await mkdtemp(path.join(os.tmpdir(),'worklog-quiet-')),base='http://127.0.0.1:43249';
+const server=spawn(process.execPath,['server/index.js'],{env:{...process.env,PORT:'43249',DATA_DIR:dir},stdio:'pipe'});
+let browser;const results=[];const day='2026-10-17',at='2026-10-17T04:00:00Z';
+async function nav(p,page){await p.locator('.sidebar [data-page='+page+']').click();await p.locator('#'+page+'-page').waitFor({state:'visible'});await p.evaluate(()=>window.scrollTo(0,0));}
+const load=async()=>(await(await fetch(base+'/api/data')).json()).data;
+try{
+ await new Promise((resolve,reject)=>{server.stdout.once('data',resolve);server.once('error',reject);server.once('exit',code=>reject(Error('Server exit '+code)));});await mkdir('artifacts/quiet',{recursive:true});
+ for(const [name,engine,options]of [['chromium',chromium,{channel:'msedge'}],['webkit',webkit,{}]]){
+  const blank={version:1,records:[{id:'record-one',title:'整理了读书笔记',details:'把第三章的例子重新梳理了一遍，补上了两处引用。',raw:'把第三章的例子重新梳理了一遍，补上了两处引用。',project:'学习',date:day,time:'10:20',createdAt:at,suggestions:[],durationMinutes:35,effort:'normal'}],tasks:[{id:'task-one',title:'整理明天要带的材料',notes:'讲义、笔记本和已经打印好的报名表。',project:'学习',due:day,dueTime:'18:30',status:'next',priority:'normal',autoSyncRecord:true,recordId:'',createdAt:at,startedAt:at,completedAt:''}]};
+  const plan={...blank.tasks[0],id:'plan-one',title:'写日记',notes:'想写什么就写什么。',due:'',dueTime:'',repeatFrequency:'weekly',repeatDaily:false,startDate:day,endDate:'',scheduling:'count',slots:[],targetCount:3,leadMinutes:0,remind:false,planVersion:2};
+  const seed=saveDailyPlan(blank,plan,day,at);const old=await(await fetch(base+'/api/data')).json();await fetch(base+'/api/data',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({data:seed,revision:old.revision})});
+  browser=await engine.launch({headless:true,...options});const p=await browser.newPage({viewport:{width:1440,height:960},timezoneId:'Asia/Shanghai',locale:'zh-CN',reducedMotion:'reduce'});const errors=[];p.on('pageerror',e=>errors.push(e.message));await p.clock.install({time:new Date(at)});await p.goto(base);await p.locator('[data-new-today]').waitFor();
+  assert.equal(await p.locator('[data-new-today]').count(),1);
+  await p.locator('[data-plan-frequency=weekly]').click();assert.match(await p.locator('.plan-progress').innerText(),/0 \/ 3/);
+  for(const page of ['today','journal','tasks','timeline','dashboard','settings']){
+   await nav(p,page);await p.screenshot({path:`artifacts/quiet/${name}-${page}-light.png`});
+   assert.ok(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),page+' desktop overflow');
+  }
+  await nav(p,'journal');const record=p.locator('#record-form');assert.equal(await record.locator('.composer-fields').isVisible(),false);assert.ok((await record.boundingBox()).height<210);
+  assert.equal(await p.locator('.journal-recap').getAttribute('open'),null);await p.locator('.journal-recap>summary').click();assert.equal(await p.locator('#review').isVisible(),true);await p.locator('.journal-recap>summary').click();
+  await p.locator('#journal-range').selectOption('week');await p.locator('#journal-range').selectOption('month');await p.locator('#journal-range').selectOption('day');
+  await record.locator('.expand-fields').click();await record.locator('[name=durationMinutes]').fill('20');await record.locator('.expand-fields').click();await p.locator('#raw-input').fill('随手记下来');await p.locator('#raw-input').press('Control+Enter');await p.locator('#raw-input').press('End');await p.locator('#raw-input').pressSequentially('second line');await p.locator('#raw-input').press('Enter');await p.waitForFunction(()=>document.querySelector('#raw-input').value==='');assert.equal((await load()).records.at(-1).durationMinutes,20);
+  await p.locator('#calendar-open').click();assert.equal(await p.locator('#view-date').isVisible(),false);await p.locator('#date-picker [data-calendar-mode=events]').click();await p.locator('[data-calendar-unit=week]').click();await p.locator('[data-calendar-layout=columns]').click();await p.locator('.calendar-tools>summary').click();await p.locator('#record-order').selectOption('desc');await p.screenshot({path:`artifacts/quiet/${name}-calendar.png`});await p.locator('#date-picker [data-close]').click();
+  await nav(p,'tasks');const task=p.locator('#task-form');assert.equal(await task.locator('[name=repeatFrequency]').isVisible(),false);assert.equal(await task.locator('[name=autoSyncRecord]').isVisible(),false);assert.ok((await task.boundingBox()).height<255);
+  await task.locator('.expand-fields').click();await task.locator('[name=autoSyncRecord]').check();assert.equal(await task.locator('.apply-time').getAttribute('aria-checked'),'false');await task.locator('[type=file]').setInputFiles({name:'note.txt',mimeType:'text/plain',buffer:Buffer.from('attached')});await task.locator('.attachment').waitFor();await p.locator('#new-task:enabled').waitFor();await task.locator('.expand-fields').click();await p.locator('#task-input').fill('随手添一项');await p.locator('#task-input').press('Enter');await p.waitForFunction(()=>document.querySelector('#task-input').value==='');
+  const saved=(await load()).tasks.find(t=>t.title==='随手添一项');assert.equal(saved.due,'');assert.equal(saved.attachments.length,1);assert.equal(saved.autoSyncRecord,true);await p.locator('#tasks-page [data-toggle-task="'+saved.id+'"]').click();await p.waitForFunction(()=>document.querySelector('#done-count').textContent==='1');assert.ok((await load()).records.some(r=>r.sourceTaskId===saved.id));
+  await p.locator('[data-task-filter=done]').click();await p.locator('#tasks-page [data-entry-id="'+saved.id+'"]').click();await p.getByRole('menuitem',{name:'返回待处理'}).click();assert.ok(!(await load()).records.some(r=>r.sourceTaskId===saved.id));await p.locator('#task-range').selectOption('week');await p.locator('#task-range').selectOption('all');
+  await nav(p,'timeline');await p.locator('#history-layout').selectOption('vertical');assert.equal(await p.locator('.unified-scroll.vertical').count(),1);await p.locator('#open-report').click();await p.locator('[data-report-unit=week]').click();await p.locator('[data-report-all]').click();assert.equal(await p.locator('#export-report-pdf').isEnabled(),true);await p.locator('#open-report').click();
+  await nav(p,'dashboard');assert.equal(await p.locator('.data-manager').getAttribute('open'),null);await p.locator('.data-manager>summary').click();await p.locator('[data-data-tab=tasks]').click();assert.equal(await p.locator('.data-manager').getAttribute('open'),'');assert.ok(await p.locator('.data-manager tbody tr').count()>0);await p.locator('#dashboard-backup').click();assert.equal(await p.locator('#export-md').isVisible(),false);await p.locator('#backup details>summary').click();assert.equal(await p.locator('#export-md').isVisible(),true);const download=p.waitForEvent('download');await p.locator('#export-json').click();await download;await p.locator('#backup [data-close]').click();
+  await nav(p,'settings');assert.equal(await p.locator('#accent-hex').isVisible(),false);await p.locator('.custom-colors>summary').click();await p.locator('#accent-hex').fill('#4d6c61');await p.locator('#accent-hex').press('Tab');assert.equal(await p.evaluate(()=>localStorage.getItem('worklog.accent')),'#4d6c61');await p.locator('#reset-accent').click();await p.locator('[data-mode=dark]').click();await p.locator('[data-language=en]').click();await p.waitForFunction(()=>document.documentElement.lang==='en');
+  for(const size of [{width:800,height:600},{width:390,height:844}]){
+   await p.setViewportSize(size);
+   for(const page of ['today','journal','tasks','timeline','dashboard','settings']){await nav(p,page);assert.ok(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),page+' '+size.width+' overflow');await p.screenshot({path:`artifacts/quiet/${name}-${page}-dark-${size.width}.png`});}
+   await nav(p,'tasks');await task.locator('.expand-fields').click();await p.locator('#new-task').scrollIntoViewIfNeeded();const box=await p.locator('#new-task').boundingBox();assert.ok(box.x>=0&&box.x+box.width<=size.width&&box.y+box.height<=size.height);await task.locator('.expand-fields').click();
+  }
+  assert.deepEqual(await p.evaluate(async()=>(await import('/src/lib/i18n.js')).missingMessages()),[]);assert.deepEqual(errors,[]);results.push({engine:name,pages:6,viewports:3,languages:2,schemes:2,checks:'default density, date views, folded save, keyboard, attachments, sync/undo, plan access, calendar, report selection, data manager, backup, theme and overflow'});console.log('PASS quiet workspace '+name);await browser.close();browser=null;
+ }
+ await writeFile('artifacts/quiet/results.json',JSON.stringify(results,null,2));
+}finally{await browser?.close();server.kill();}

@@ -22,7 +22,7 @@ for(const reuse of [false,true]){
   app=spawn(path.join(stage,'WorkJournal.exe'),['--data-dir',temp,'--port',String(port)],{env,windowsHide:true,stdio:'ignore'});
   await new Promise((resolve,reject)=>{const timer=setTimeout(()=>{app.kill();reject(Error('Native test timeout'));},60000);app.on('error',e=>{clearTimeout(timer);reject(e);});app.on('exit',code=>{clearTimeout(timer);code===0?resolve():reject(Error('Native exit '+code));});});
   const result=JSON.parse(await readFile(path.join(temp,'smoke-result.json'),'utf8'));
-  assert.equal(result.success,true,JSON.stringify(result));
+  assert.equal(result.success,true,JSON.stringify(result));assert.equal(await readFile(path.join(temp,'reminder-test.txt'),'utf8'),'12:00 计划提醒测试');
   assert.equal((await readFile(path.join(temp,'appearance/color.txt'),'utf8')).trim(),'#3566a0');
   assert.ok((await readFile(path.join(temp,'appearance/icon-3566a0.ico'))).length>1000);
   assert.equal((await readFile(path.join(temp,'appearance/mode.txt'),'utf8')).trim(),'dark');
@@ -33,7 +33,7 @@ for(const reuse of [false,true]){
   const pdf=await readFile(path.join(temp,'report.pdf'));assert.equal(pdf.subarray(0,5).toString(),'%PDF-');
   if(reuse)assert.equal((await(await fetch(origin+'/api/status')).json()).version,version,'Reused server must survive window close');
   const evidence=path.join(root,'artifacts',`native-${version}-${reuse?'shared':'standalone'}`);await mkdir(evidence,{recursive:true});
-  for(const name of ['smoke-result.json','desktop.png','report.pdf'])await copyFile(path.join(temp,name),path.join(evidence,name));
+  for(const name of ['smoke-result.json','desktop.png','report.pdf','startup.json'])await copyFile(path.join(temp,name),path.join(evidence,name));
   console.log(`PASS native ${version} ${reuse?'shared backend':'standalone'}: save, PDF, data location and shutdown`);
  }finally{
   if(app?.exitCode===null)app.kill();if(backend?.exitCode===null)backend.kill();await delay(700);

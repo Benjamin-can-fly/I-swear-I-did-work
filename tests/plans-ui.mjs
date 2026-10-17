@@ -1,0 +1,38 @@
+import {chromium,webkit} from '@playwright/test';
+import assert from 'node:assert/strict';
+import {spawn} from 'node:child_process';
+import {mkdtemp,mkdir} from 'node:fs/promises';import os from 'node:os';import path from 'node:path';
+const dir=await mkdtemp(path.join(os.tmpdir(),'worklog-plans-')),base='http://127.0.0.1:43239';
+const server=spawn(process.execPath,['server/index.js'],{env:{...process.env,PORT:'43239',DATA_DIR:dir},stdio:'pipe'});let browser;
+const load=async()=> (await(await fetch(base+'/api/data')).json()).data;
+async function nav(p,name){await p.locator('.sidebar [data-page='+name+']').click();await p.locator('#'+name+'-page').waitFor({state:'visible'});}
+async function opts(p){const f=p.locator('#task-form');if(!await f.locator('.composer-fields').isVisible())await f.locator('.expand-fields').click();}
+async function save(p){await p.locator('#new-task').click();await p.waitForFunction(()=>!document.querySelector('#new-task').disabled&&document.querySelector('#task-input').value==='');}
+try{
+ await new Promise((resolve,reject)=>{server.stdout.once('data',resolve);server.once('error',reject);});await mkdir('artifacts/plans',{recursive:true});
+ for(const [name,engine,options]of [['chromium',chromium,{channel:'msedge'}],['webkit',webkit,{}]]){
+  const snapshot=await(await fetch(base+'/api/data')).json();await fetch(base+'/api/data',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({data:{version:1,records:[],tasks:[]},revision:snapshot.revision})});
+  browser=await engine.launch({headless:true,...options});const p=await browser.newPage({viewport:{width:1440,height:960},locale:'zh-CN',timezoneId:'Asia/Shanghai',reducedMotion:'reduce'}),errors=[];p.on('pageerror',e=>errors.push(e.stack));
+  await p.clock.install({time:new Date('2026-10-12T11:29:00+08:00')});await p.goto(base);await p.locator('[data-new-today]').first().waitFor();
+  await p.locator('[data-new-today]').first().click();await p.locator('#task-form').waitFor();
+  assert.equal(await p.locator('#task-review').count(),0);assert.equal(await p.locator('#tasks-page [data-page=timeline]').count(),0);
+  assert.equal(await p.locator('#task-form #daily-plans').count(),1);assert.equal(await p.locator('#task-form [name=due]').isVisible(),false);assert.equal(await p.locator('#task-form [name=repeatFrequency]').isVisible(),false);await p.screenshot({path:'artifacts/plans/'+name+'-compact.png'});await opts(p);assert.equal(await p.locator('#task-form .apply-time').isVisible(),true);
+  const form=p.locator('#task-form');await p.locator('#task-input').fill('整理学习笔记');await form.locator('[name=repeatFrequency]').selectOption('weekly');await form.locator('[name=targetCount]').fill('2');await form.locator('.arrange-times').click();
+  assert.equal(await form.locator('.plan-slot').count(),2);await form.locator('.plan-slot').nth(0).locator('[data-slot-field=day]').selectOption('0');await form.locator('.plan-slot').nth(0).locator('[type=time]').fill('12:00');await form.locator('.plan-slot').nth(1).locator('[data-slot-field=day]').selectOption('3');await form.locator('.plan-slot').nth(1).locator('[type=time]').fill('18:00');
+  await form.locator('[name=autoSyncRecord]').check();await opts(p);await form.locator('[name=remind]').check();await form.locator('[name=leadMinutes]').fill('30');await form.locator('.arrange-times').click();await form.locator('.expand-fields').click();
+  await p.screenshot({path:`artifacts/plans/${name}-weekly-editor.png`});assert.ok((await form.boundingBox()).height<490,'compact editor');await save(p);
+  let d=await load();assert.equal(d.routines[0].targetCount,2);assert.equal(d.tasks.length,2);assert.equal(d.tasks[0].dueTime,'12:00');
+  await nav(p,'today');await p.locator('[data-plan-frequency=weekly]').click();assert.equal(await p.locator('.daily-card > .today-task').count(),0);await p.clock.fastForward(75000);await p.locator('.daily-card > .today-task').waitFor();
+  assert.match(await p.locator('.today-stats').innerText(),/待办\s+1/);await p.locator('.daily-card > .today-task .task-check').click();await p.waitForFunction(()=>document.querySelector('.daily-card .today-completed'));
+  assert.equal((await load()).records.length,1);await p.locator('.daily-card .today-completed summary').click();await p.locator('.daily-card .today-completed .task-check').click();await p.waitForFunction(()=>!document.querySelector('.daily-card .today-completed'));assert.equal((await load()).records.length,0);
+  await p.locator('[data-manage-daily]').click();await p.locator('.today-plan-manager').waitFor();await p.locator('[data-edit-daily]').first().click();await p.locator('#task-input').fill('整理本周笔记');await save(p);d=await load();assert.equal(d.routines[0].title,'整理本周笔记');
+  await opts(p);await form.locator('[name=repeatFrequency]').selectOption('daily');await form.locator('[name=targetCount]').fill('3');await p.locator('#task-input').fill('每日练习');await save(p);d=await load();assert.equal(d.tasks.filter(t=>t.title==='每日练习').length,3);
+  await nav(p,'today');await p.locator('[data-back-today]').click();await p.locator('[data-plan-frequency=daily]').click();await p.locator('.quota-plan .task-check').click();await p.waitForFunction(()=>document.querySelector('.plan-progress')?.textContent.includes('1 / 3'));await p.locator('.quota-plan .task-check').click();await p.waitForFunction(()=>document.querySelector('.plan-progress')?.textContent.includes('2 / 3'));await p.locator('.quota-plan .task-check').click();await p.waitForFunction(()=>!document.querySelector('.quota-plan'));assert.equal((await load()).tasks.filter(t=>t.title==='每日练习'&&t.status==='done').length,3);
+  await nav(p,'tasks');await opts(p);await form.locator('[name=repeatFrequency]').selectOption('monthly');await form.locator('.arrange-times').click();await form.locator('.plan-slot select').selectOption('last');await form.locator('.plan-slot input').fill('18:00');await p.locator('#task-input').fill('月度回顾');await save(p);assert.equal((await load()).tasks.find(t=>t.title==='月度回顾').routineDate,'2026-10-31');
+  await opts(p);await p.locator('.daily-plans summary').click();await p.locator('[data-edit-daily]').last().click();await form.locator('.arrange-times').click();await p.reload();await nav(p,'tasks');assert.equal(await form.locator('[name=repeatFrequency]').inputValue(),'monthly');assert.equal(await form.locator('[name=targetCount]').inputValue(),'1');await form.locator('.arrange-times').click();assert.equal(await form.locator('.plan-slot select').inputValue(),'last');await form.locator('.cancel-edit').click();
+  await nav(p,'settings');await p.locator('[data-language=en]').click();await p.waitForFunction(()=>document.documentElement.lang==='en');await nav(p,'tasks');await opts(p);await form.locator('[name=repeatFrequency]').selectOption('weekly');await form.locator('.arrange-times').click();
+  const missing=await p.evaluate(async()=>(await import('/src/lib/i18n.js')).missingMessages());assert.deepEqual(missing,[]);
+  for(const size of [{width:800,height:600},{width:390,height:844}]){await p.setViewportSize(size);await p.locator('#new-task').scrollIntoViewIfNeeded();assert.ok(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));await p.screenshot({path:`artifacts/plans/${name}-editor-${size.width}.png`});}
+  await p.setViewportSize({width:1440,height:960});await nav(p,'today');await p.screenshot({path:`artifacts/plans/${name}-today.png`});assert.deepEqual(errors,[]);console.log('PASS '+name+': full-width integrated plans, preserved dates, time slots, release boundary, count completion, sync undo, monthly last day, drafts, English and narrow layouts');await browser.close();browser=null;
+ }
+}finally{await browser?.close();server.kill();}

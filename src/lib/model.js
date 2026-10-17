@@ -5,9 +5,24 @@ const optionalDate=v=>v===''||validDate(v);
 export function validateData(d) {
   if(!d||d.version!==1||!Array.isArray(d.records)||!Array.isArray(d.tasks)||d.records.length>20000||d.tasks.length>20000)throw Error('备份格式不正确或条目过多');
   if(d.routines!==undefined){
-   if(!Array.isArray(d.routines)||d.routines.length>1000)throw Error('每日计划格式不正确或数量过多');
+   if(!Array.isArray(d.routines)||d.routines.length>1000)throw Error('计划格式不正确或数量过多');
    validateData({version:1,records:[],tasks:d.routines});
-   for(const p of d.routines)if(!str(p.id,60)||!validDate(p.startDate)||!optionalDate(p.endDate)||p.endDate&&p.endDate<p.startDate||typeof p.active!=='boolean'||p.repeatDaily!==true||!optionalDate(p.lastGeneratedDate||''))throw Error('每日计划日期或设置不正确');
+   for(const p of d.routines)if(!str(p.id,60)||!validDate(p.startDate)||!optionalDate(p.endDate)||p.endDate&&p.endDate<p.startDate||typeof p.active!=='boolean'||!['daily','weekly','monthly'].includes(p.repeatFrequency||(p.repeatDaily?'daily':''))||!optionalDate(p.lastGeneratedDate||''))throw Error('计划日期或设置不正确');
+  }
+  for(const p of d.routines||[]){
+   if(p.planVersion!==undefined&&p.planVersion!==2)throw Error('计划版本不正确');
+   if(p.effectiveFrom!==undefined&&!validDate(p.effectiveFrom))throw Error('计划生效日期不正确');
+   if(p.generatedPeriods!==undefined&&(!Array.isArray(p.generatedPeriods)||p.generatedPeriods.length>3||p.generatedPeriods.some(v=>!validDate(v))))throw Error('计划周期不正确');
+   if(p.planVersion===2){
+    if(!['count','times'].includes(p.scheduling)||!Number.isInteger(p.targetCount)||p.targetCount<1||p.targetCount>60||!Number.isInteger(p.leadMinutes)||p.leadMinutes<0||p.leadMinutes>1440||typeof p.remind!=='boolean')throw Error('请检查计划次数和提前显示时间');
+    if(!Array.isArray(p.slots)||p.slots.length>60||p.scheduling==='times'&&(p.slots.length!==p.targetCount||!p.slots.length))throw Error('计划次数与时间安排不一致');
+    const keys=new Set(),moments=new Set();
+    for(const slot of p.slots){
+     if(!slot||!str(slot.id,12)||!/^[a-zA-Z0-9-]+$/.test(slot.id)||keys.has(slot.id)||!/^([01]\d|2[0-3]):[0-5]\d$/.test(slot.time||''))throw Error('计划时间不正确');
+     if(p.repeatFrequency==='weekly'&&!/^[0-6]$/.test(String(slot.day))||p.repeatFrequency==='monthly'&&slot.day!=='last'&&(!Number.isInteger(Number(slot.day))||Number(slot.day)<1||Number(slot.day)>31))throw Error('计划日期不正确');
+     const moment=(p.repeatFrequency==='daily'?'':slot.day)+slot.time;if(moments.has(moment))throw Error('同一天的安排时间不能重复');keys.add(slot.id);moments.add(moment);
+    }
+   }
   }
   const ids=new Set();
   for(const entry of [...d.records,...d.tasks])if(entry.attachments!==undefined){
@@ -27,7 +42,11 @@ export function validateData(d) {
   }
   const tids=new Set();
   for(const t of d.tasks) {
-    if(t.routineId!==undefined&&(!str(t.routineId,60)||!t.routineId||!validDate(t.routineDate)))throw Error('每日任务来源不正确');
+    if(t.routineId!==undefined&&(!str(t.routineId,60)||!t.routineId||!validDate(t.routineDate)))throw Error('计划任务来源不正确');
+    if(t.routinePeriod!==undefined&&!validDate(t.routinePeriod))throw Error('计划周期不正确');
+    for(const k of ['scheduledAt','visibleFrom'])if(t[k]!==undefined&&t[k]!==''&&(!str(t[k],100)||!Number.isFinite(Date.parse(t[k]))))throw Error('计划时间不正确');
+    if(t.routineEnd!==undefined&&(!validDate(t.routineEnd)||!validDate(t.routineDate)||t.routineEnd<t.routineDate))throw Error('计划任务周期不正确');
+    if(t.repeatFrequency!==undefined&&!['none','daily','weekly','monthly'].includes(t.repeatFrequency))throw Error('计划频率不正确');
     if(t.scheduledDate!==undefined&&!optionalDate(t.scheduledDate))throw Error('安排日期不正确');
     if(t.autoSyncRecord!==undefined&&typeof t.autoSyncRecord!=='boolean')throw Error('自动同步设置不正确');
     for(const key of ['startedAt','completedAt'])if(t[key]!==undefined&&t[key]!==''&&(!str(t[key],100)||!Number.isFinite(Date.parse(t[key]))))throw Error('任务时间不正确');

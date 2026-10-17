@@ -4,7 +4,7 @@ import {taskCheck} from '../components/tasks.js';
 const reduced=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
 const running=new WeakMap(),folds=new WeakMap();
 const interactive='button,summary,a[href],input,select,textarea,[role="button"],.file-button';
-const selectors=[['organize','#organize'],['summary','#generate-summary'],['complete','.task-check'],['chart','[data-chart-date]'],['nav','.nav-item,.brand'],['create','#new-task'],['save','button[type=submit],[data-suggest]'],['close','[data-close],.cancel-edit,.attachment-remove,.clear-composer'],['danger','.danger'],['date-arrow','[data-shift],[data-task-shift],[data-history-shift],[data-inline-date-shift],[data-calendar-shift],[data-data-offset]'],['date','[data-calendar],#go-today,#calendar-open'],['segment','[data-view],[data-task-view],[data-history-layout],[data-task-filter],[data-stat-days],[data-data-tab],[data-calendar-mode],[data-calendar-unit],[data-calendar-layout]'],['fold','summary'],['checkbox','input[type=checkbox]'],['select','select'],['field','input,textarea'],['download','#export-json,#export-md'],['upload','.file-button'],['edit','[data-edit-record],[data-edit-task]'],['link','[data-link-record],.recap-entry,.next-task'],['secondary','.secondary'],['text','.text-button,button,a']];
+const selectors=[['new-today','[data-new-today]'],['organize','#organize'],['summary','#generate-summary'],['complete','.task-check'],['chart','[data-chart-date]'],['nav','.nav-item,.brand'],['create','#new-task'],['save','button[type=submit],[data-suggest]'],['close','[data-close],.cancel-edit,.attachment-remove,.clear-composer'],['danger','.danger'],['date-arrow','[data-shift],[data-task-shift],[data-history-shift],[data-inline-date-shift],[data-calendar-shift],[data-data-offset]'],['date','[data-calendar],#go-today,#calendar-open'],['segment','[data-view],[data-task-view],[data-history-layout],[data-task-filter],[data-stat-days],[data-data-tab],[data-calendar-mode],[data-calendar-unit],[data-calendar-layout]'],['fold','summary'],['checkbox','input[type=checkbox]'],['select','select'],['field','input,textarea'],['download','#export-json,#export-md'],['upload','.file-button'],['edit','[data-edit-record],[data-edit-task]'],['link','[data-link-record],.recap-entry,.next-task'],['secondary','.secondary'],['text','.text-button,button,a']];
 const classify=el=>el.id==='export-report-pdf'?'save':el.hasAttribute('data-report-close')?'close':el.matches('button,input')&&el.form&&el.type==='submit'?'save':selectors.find(([,s])=>el.matches(s))?.[0]||'text';
 const target=e=>{const el=e.target.closest(interactive)||e.target.closest('label')?.querySelector('input,select,textarea');return el?.closest('.file-button')||el;};
 function play(el,frames,duration=280,options={}){
@@ -56,6 +56,7 @@ function activate(el,kind,previous){
  if(reduced()||!el)return;
  el.dataset.lastMotion=kind;
  switch(kind){
+  case 'close':play(el.querySelector('svg')||el,[{transform:'rotate(0)'},{transform:'rotate(-9deg)',offset:.25},{transform:'rotate(6deg)',offset:.55},{transform:'rotate(-2deg)',offset:.8},{transform:'rotate(0)'}],180);break;
   case 'segment':{const slider=glider(el.closest('.segmented'));if(slider&&previous){const now=el.getBoundingClientRect();play(slider,[{transform:`translateX(${previous.left-now.left}px) scaleX(${previous.width/now.width})`},{transform:'translateX(0) scaleX(1)'}],320);}break;}
   case 'date-arrow':{const n=Number(el.dataset.shift||el.dataset.taskShift||el.dataset.historyShift||el.dataset.inlineDateShift||el.dataset.calendarShift||1);play(el,[{transform:'translateX(0)'},{transform:`translateX(${n<0?-5:5}px)`,offset:.45},{transform:'translateX(0)'}],260);break;}
   case 'chart':{const svg=el.closest('svg'),point=svg?.querySelector(`circle[data-date="${el.dataset.chartDate}"]`);play(point,[{transform:'scale(.55)',opacity:.5},{transform:'scale(1.35)',opacity:1,offset:.55},{transform:'scale(1)'}],340);play(document.querySelector('.chart-readout'),[{opacity:.35},{opacity:1}],220);break;}
@@ -139,3 +140,10 @@ export async function taskCompletion(row,done){
  await finished(play(row,[{height:row.getBoundingClientRect().height+'px',minHeight:0,opacity:1,paddingTop:'25px',paddingBottom:'25px'},{height:'0px',minHeight:0,paddingTop:0,paddingBottom:0,opacity:0}],230));
 }
 
+
+export async function newTaskFeedback(button){
+ button.dataset.lastMotion='new-today';
+ play(button,[{transform:'scale(1)'},{transform:'scale(.96)',offset:.35},{transform:'scale(1.015)',offset:.7},{transform:'scale(1)'}],190);
+ await finished(play(button.querySelector('svg'),[{transform:'rotate(0)'},{transform:'rotate(-14deg) translateY(-2px)',offset:.35},{transform:'rotate(7deg)',offset:.7},{transform:'rotate(0)'}],190));
+}
+export function composerEntrance(form){return play(form,[{opacity:.65,transform:'translateY(8px) scale(.99)'},{opacity:1,transform:'translateY(-1px) scale(1.003)',offset:.7},{opacity:1,transform:'translateY(0) scale(1)'}],230);}

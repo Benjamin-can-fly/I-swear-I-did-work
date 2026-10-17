@@ -1,5 +1,108 @@
 // Interface copy only. Interpolated user content is never translated.
 export const en=Object.fromEntries(`
+截止年|Deadline year
+截止月|Deadline month
+截止日|Deadline day
+截止时|Deadline hour
+截止分|Deadline minute
+每日保存次数|Daily saves
+{0} · {1} 次|{0} · {1} saves
+补上日期和时间，或取消勾选截止日期|Fill in the date and time, or uncheck Deadline
+统计口径|How this is counted
+统计说明|About these numbers
+汇总与近期待办|Overview and upcoming tasks
+事件列表|Events
+月历|Calendar
+定位与排序|Jump to date and sort
+其他导出格式|Other export formats
+计划|Plans
+数据明细 {0} 条|Browse data · {0} entries
+数据明细|Browse data
+工作记录与待办|Journal entries and tasks
+导出汇报|Export report
+按日查看|By day
+按周查看|By week
+按月查看|By month
+按周回顾|Weekly review
+按月回顾|Monthly review
+选项|Options
+刚做了什么？|What did you get done?
+有什么要做的？|What's on your list?
+截止|Due
+{0} · {1} 次|{0} · {1} times
+不指定时间，完成一次勾一次|No set time. Check off each one as you go.
+{1} · {2} 次 · {3}{4}|{1} · {2} times · {3}{4}
+月份没有所选日期时，安排在最后一天；相同时刻只保留一次。|Short month? We'll use the last day. Matching times count as one occurrence.
+安排方式|Schedule
+普通待办|One-off task
+每日计划|Daily plans
+每周计划|Weekly plans
+每月计划|Monthly plans
+每周|Weekly
+每月|Monthly
+每天|Daily
+每周期次数|Times per period
+减少次数|Fewer times
+增加次数|More times
+次|times
+安排时间|Set times
+修改时间|Edit times
+具体时间|Scheduled times
+只定次数|Count only
+＋ 添加一次安排|+ Add a time
+每个时刻单独完成。同一天可以添加多次。|Check off each time separately. Add several on the same day.
+提前显示 · 分钟|Show ahead of time · minutes
+0 表示准时显示，最多提前 24 小时。|Use 0 to show on time, or up to 1,440 minutes early.
+应用运行时提醒|Remind me while the app is running
+关闭应用后不会提醒；下次打开会保留未完成事项。|Reminders need the app running. Unfinished tasks stay for next time.
+同时更新本周期未完成的安排|Also update unfinished items in this period
+默认更新尚未到时的安排；已完成的记录保留。更改周期从下个周期生效。|Future times update by default. Completed entries stay as they are. Frequency changes start next period.
+最后一天|Last day
+{0} 日|Day {0}
+周一|Mon
+周二|Tue
+周三|Wed
+周四|Thu
+周五|Fri
+周六|Sat
+周日|Sun
+计划时间|Scheduled time
+删除这次安排|Remove this time
+保存计划|Save plan
+按安排时间生成待办|Tasks follow your schedule
+本周期内完成即可|Complete any time in this period
+请给每次安排填写时间|Set a time for each item
+同一天的安排时间不能重复|Choose different times on the same day
+计划已保存|Plan saved
+计划已暂停，已有记录保留|Plan paused. Existing entries are kept.
+跳过本次|Skip this time
+本次已跳过|Skipped this time
+今日已办|Done today
+待办|To do
+管理计划|Manage plans
+计划周期|Plan frequency
+这会儿没有要做的计划。|Nothing due right now.
+稍后显示|Coming up
+已有计划|Saved plans
+新增计划 ↗|New plan ↗
+新增计划|New plan
+进行中|Active
+每天、每周或每月要做的事，在这里设置一次就好。|Set up the things you do daily, weekly or monthly here.
+{0} / {1} 次|{0} / {1} times
+‹ 返回今日|‹ Back to today
+计划版本不正确|Invalid plan version
+计划生效日期不正确|Invalid effective date
+计划周期不正确|Invalid plan period
+请检查计划次数和提前显示时间|Check the plan count and advance notice
+计划次数与时间安排不一致|The count and scheduled times do not match
+计划时间不正确|Invalid plan time
+计划日期不正确|Invalid plan date
+计划格式不正确或数量过多|Invalid plan format or too many plans
+计划日期或设置不正确|Invalid plan dates or settings
+计划任务来源不正确|Invalid plan task source
+计划任务周期不正确|Invalid task period
+计划频率不正确|Invalid plan frequency
+
 # 工作日志|# Work Log
 # 待办事项|# Tasks
 / {3} 天|/ {3} days

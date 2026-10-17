@@ -11,8 +11,8 @@ export const taskCheck='<svg class="completion-mark" viewBox="0 0 24 24" fill="n
 
 function taskRow(task) {
   const remaining = countdown(task);
-  const scheduled=task.routineDate||task.scheduledDate||task.due;
-  const day = scheduled ? parseDate(scheduled).toLocaleDateString(locale(),{month:'long',day:'numeric'}) : tr('未安排');
+  const scheduled=task.routineDate||task.due||task.scheduledDate;
+  const day = scheduled ? parseDate(scheduled).toLocaleDateString(locale(),{month:'short',day:'numeric'}) : tr('未安排');
   return tr`<article class="task-row ${task.status==='done'?'completed':''}" data-task="${esc(task.id)}">
     <div class="task-date"><time datetime="${esc(scheduled+(task.dueTime?'T'+task.dueTime:''))}"><span>${esc(day)}</span><strong>${esc(task.dueTime|| (scheduled?tr('不限时'):'—'))}</strong>${scheduled?`<small>${esc(scheduled.slice(0,4))}</small>`:''}</time><i class="timeline-node"></i></div>
     <div class="task-main"><button class="task-check" data-toggle-task="${esc(task.id)}" aria-pressed="${task.status==='done'}" aria-label="${task.status==='done'?tr('重新打开'):tr('完成')} ${esc(task.title)}">${taskCheck}</button><div class="task-content"><button class="task-writing" ${task.status==='done'?'disabled':`data-complete-task="${esc(task.id)}"`} aria-label="${task.status==='done'?tr('已完成'):tr('完成')} ${esc(task.title)}"><span class="task-title">${esc(task.title)}</span>${task.notes?`<span class="task-notes">${esc(task.notes)}</span>`:''}</button>${attachmentList(task.attachments)}<div class="task-meta">${task.project?`<span class="tag">${esc(task.project)}</span>`:''}${task.priority==='high'?tr('<span class="priority">优先</span>'):''}${task.recordId?tr`<button class="text-button" data-link-record="${esc(task.recordId)}">相关记录 ↗</button>`:''}</div></div></div>

@@ -46,6 +46,7 @@ class JournalWindow:Form {
  [DllImport("user32.dll")] static extern uint GetDpiForWindow(IntPtr window);
  [DllImport("dwmapi.dll")] static extern int DwmSetWindowAttribute(IntPtr window,int attribute,ref int value,int size);
  [StructLayout(LayoutKind.Sequential)] struct WindowRect{public int Left,Top,Right,Bottom;}
+ NotifyIcon reminderIcon;
  WebView2 web;Process server;CoreWebView2Environment environment;
  readonly LaunchPanel loading=new LaunchPanel{Dock=DockStyle.Fill,BackColor=Color.FromArgb(248,250,248)};
  Image launchImage;
@@ -118,7 +119,7 @@ class JournalWindow:Form {
   try{string colorFile=Path.Combine(AppearancePath,"color.txt");if(File.Exists(colorFile)){string color=File.ReadAllText(colorFile).Trim();if(System.Text.RegularExpressions.Regex.IsMatch(color,"^#[0-9a-fA-F]{6}$")){string iconFile=Path.Combine(AppearancePath,"icon-"+color.Substring(1)+".ico");if(File.Exists(iconFile))using(var stored=new Icon(iconFile)){Icon=(Icon)stored.Clone();var payload=File.ReadAllBytes(iconFile);using(var input=new MemoryStream(payload,22,payload.Length-22))using(var source=Image.FromStream(input)){var replacement=new Bitmap(source);var previous=launchImage;launchImage=replacement;previous.Dispose();}}}}}catch{}
   loading.Paint+=(s,e)=>{if(!startup.ContainsKey("first-frame"))startup["first-frame"]=(long)(DateTime.UtcNow-Process.GetCurrentProcess().StartTime.ToUniversalTime()).TotalMilliseconds;float dpi=e.Graphics.DpiX/96f;float y=loading.Height/2f+66*dpi;using(var font=new Font("Segoe UI",10))using(var brush=new SolidBrush(darkMode?Color.FromArgb(187,202,192):Color.FromArgb(110,130,116)))using(var format=new StringFormat{Alignment=StringAlignment.Center})e.Graphics.DrawString(launchPhase,font,brush,new RectangleF(0,y,loading.Width,30*dpi),format);float width=150*dpi,x=(loading.Width-width)/2;using(var track=new SolidBrush(darkMode?Color.FromArgb(44,62,49):Color.FromArgb(224,232,224)))using(var ink=new SolidBrush(darkMode?Color.FromArgb(171,201,181):Color.FromArgb(70,100,83))){e.Graphics.FillRectangle(track,x,y+34*dpi,width,3*dpi);float step=(float)((1-Math.Cos(Program.LaunchClock.Elapsed.TotalSeconds*Math.PI/1.2))/2);e.Graphics.FillRectangle(ink,x+step*(width-35*dpi),y+34*dpi,35*dpi,3*dpi);}};
   launchTimer.Tick+=(s,e)=>{float dpi=GetDpiForWindow(Handle)/96f;loading.Invalidate(new Rectangle(0,(int)(loading.Height/2f+64*dpi),loading.Width,(int)(76*dpi)));};launchTimer.Start();loading.Resize+=(s,e)=>loading.Invalidate();Controls.Add(loading);loading.BringToFront();
-  FormClosed+=(s,e)=>{closing=true;launchTimer.Dispose();if(web!=null)web.Dispose();launchImage.Dispose();if(server!=null){try{if(!server.HasExited)server.Kill();}catch{}server.Dispose();}};
+  FormClosed+=(s,e)=>{closing=true;if(reminderIcon!=null)reminderIcon.Dispose();launchTimer.Dispose();if(web!=null)web.Dispose();launchImage.Dispose();if(server!=null){try{if(!server.HasExited)server.Kill();}catch{}server.Dispose();}};
  }
  void CenterOnActiveScreen(bool initial){
   var area=Screen.FromPoint(Cursor.Position).WorkingArea;MaximizedBounds=area;
@@ -182,6 +183,11 @@ class JournalWindow:Form {
      if(message.ContainsKey("type")&&(string)message["type"]=="export-report")await ExportPdf((string)message["html"],(string)message["title"]);
      if(message.ContainsKey("type")&&(string)message["type"]=="app-ready"){loading.Hide();launchTimer.Stop();web.Visible=true;web.BringToFront();web.Focus();Mark("interactive");}
      if(message.ContainsKey("type")&&(string)message["type"]=="set-preferences")SetPreferences((string)message["mode"],(string)message["language"]);
+     if(message.ContainsKey("type")&&(string)message["type"]=="plan-reminder"){
+      string text=(string)message["message"];if(text.Length>1000)text=text.Substring(0,1000);
+      if(testing)File.WriteAllText(Path.Combine(dataDir,"reminder-test.txt"),text);
+      else {if(reminderIcon==null){reminderIcon=new NotifyIcon{Icon=Icon,Text="Work Log",Visible=true};reminderIcon.BalloonTipClicked+=(a,b)=>{WindowState=FormWindowState.Normal;Activate();};}reminderIcon.ShowBalloonTip(5000,"Work Log",text,ToolTipIcon.Info);}
+     }
      if(message.ContainsKey("type")&&(string)message["type"]=="set-theme")SetTheme((string)message["color"],(string)message["png"]);
      if(message.ContainsKey("type")&&(string)message["type"]=="window"){
       string action=(string)message["action"];if(action=="close")Close();if(action=="minimize")WindowState=FormWindowState.Minimized;

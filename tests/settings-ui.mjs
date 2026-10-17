@@ -37,7 +37,7 @@ try{
   assert.equal(await p.locator(`[data-record="${saved.id}"] .record-details`).textContent(),saved.details);
   assert.equal(await p.locator(`[data-record="${saved.id}"] .record-details b`).count(),0);
   await p.locator('#calendar-open').click();await p.screenshot({path:`artifacts/settings/${name}-calendar-dark.png`});await p.locator('#date-picker [data-close]').click();
-  await nav(p,'tasks');await p.locator('#task-input').fill('Read ten pages');await p.locator('#task-form [name=autoSyncRecord]').check();await p.locator('#new-task').click();await p.waitForFunction(()=>document.querySelector('#task-input').value==='');
+  await nav(p,'tasks');await p.locator('#task-input').fill('Read ten pages');await p.locator('#task-form .expand-fields').click();await p.locator('#task-form [name=autoSyncRecord]').check();await p.locator('#new-task').click();await p.waitForFunction(()=>document.querySelector('#task-input').value==='');
   const task=(await load()).tasks.at(-1);await p.locator(`[data-toggle-task="${task.id}"]`).first().click();await p.waitForFunction(()=>Number(document.querySelector('#done-count').textContent)>0);
   assert.ok((await load()).records.some(r=>r.sourceTaskId===task.id));
   await p.locator('[data-task-filter=done]').click();await p.locator(`[data-entry-id="${task.id}"]`).click();await p.getByRole('menuitem',{name:'Back to pending'}).click();
@@ -47,7 +47,7 @@ try{
   const missing=await p.evaluate(async()=> (await import('/src/lib/i18n.js')).missingMessages());assert.deepEqual(missing,[],'all UI messages have English copy');
   for(const size of [{width:800,height:600},{width:390,height:844}]){await p.setViewportSize(size);await nav(p,'tasks');await p.locator('#new-task').scrollIntoViewIfNeeded();assert.ok(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'no horizontal page overflow');await p.locator('[data-page=settings]').click();await p.locator('[data-language="zh-CN"]').scrollIntoViewIfNeeded();const b=await p.locator('[data-language="zh-CN"]').boundingBox();assert.ok(b.x>=0&&b.x+b.width<=size.width);assert.ok(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));assert.equal(await p.locator('dialog[open]').count(),0);await p.screenshot({path:`artifacts/settings/${name}-settings-${size.width}.png`});await close(p);}
   await p.setViewportSize({width:1440,height:960});await p.locator('[data-page=settings]').click();await p.locator('button[data-mode=light]').click();await lang(p,'zh-CN');await p.screenshot({path:`artifacts/settings/${name}-settings-light.png`});await close(p);
-  assert.match(await p.locator('#task-input').getAttribute('placeholder'),/免得回头还得猜/);assert.equal(await p.evaluate(()=>document.documentElement.dataset.mode),'light');
+  assert.match(await p.locator('#task-input').getAttribute('placeholder'),/有什么要做的/);assert.equal(await p.evaluate(()=>document.documentElement.dataset.mode),'light');
   await p.reload();await p.locator('[data-new-today]').first().waitFor();assert.equal(await p.locator('#page-title').textContent(),'今天该做些什么');
   assert.deepEqual(errors,[]);console.log('PASS '+name+': preferences persisted, independent fonts/copy, draft + attachment preservation, user content safe, task sync/undo, all pages, responsive settings');
   await browser.close();browser=null;

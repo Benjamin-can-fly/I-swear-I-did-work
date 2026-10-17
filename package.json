@@ -1,11 +1,11 @@
 {
   "name": "i-swear-i-did-work",
-  "version": "0.2.6",
+  "version": "0.2.9",
   "private": true,
   "type": "module",
   "scripts": {
     "start": "node --env-file-if-exists=.env server/index.js",
-    "test": "node --test tests/core.test.js tests/task-record.test.js tests/delete-entry.test.js tests/report.test.js tests/daily.test.js tests/i18n.test.js",
+    "test": "node --test tests/core.test.js tests/task-record.test.js tests/delete-entry.test.js tests/report.test.js tests/daily.test.js tests/i18n.test.js tests/deadline-counts.test.js",
     "test:ui": "node tests/browser.mjs",
     "build:desktop": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-desktop.ps1",
     "test:webkit": "node tests/cross-platform-ui.mjs",
