@@ -79,7 +79,12 @@ def build(arch):
             '需要 macOS 13.5 或更新版本。此预览版尚未获得 Apple Developer ID 签名和公证，系统可能阻止首次打开。\n'
             '请阅读 GitHub 发布页的说明；不要关闭系统安全保护。\n',encoding='utf-8')
         output = dist/f'WorkLog-{version}-macos-{arch}.dmg'
-        run('hdiutil','create','-volname','Work Log','-srcfolder',volume,'-ov','-format','UDZO',output)
+        # Reserve explicit filesystem headroom: hdiutil's automatic estimate can
+        # under-size the image when copying the bundled arm64 Node executable.
+        payload_bytes = sum(p.stat().st_size for p in volume.rglob('*') if p.is_file() and not p.is_symlink())
+        image_mb = max(128, (payload_bytes + 1048575) // 1048576 + 64)
+        run('hdiutil','create','-volname','Work Log','-srcfolder',volume,
+            '-fs','HFS+','-size',f'{image_mb}m','-ov','-format','UDZO',output)
         digest = hashlib.sha256(output.read_bytes()).hexdigest()
         Path(str(output)+'.sha256').write_text(digest+'  '+output.name+'\n',encoding='ascii')
         print(json.dumps({'package':str(output),'bytes':output.stat().st_size,'smoke':result},ensure_ascii=False))
