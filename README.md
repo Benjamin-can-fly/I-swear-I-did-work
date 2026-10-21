@@ -14,7 +14,9 @@ Local-first work journal & to-do app · Windows / macOS · Timeline · PDF expor
 
 ![今日首页：今天该做些什么，使用示例数据](docs/images/today.png)
 
-> 已发布的 0.2.2 提供 Windows x64、Mac 苹果芯片与 Mac Intel 安装包。当前源码为 0.2.9，Windows 本机测试已通过；0.2.9 安装包尚未公开发布，Mac 原生构建仍待验证，WebKit 界面测试已通过。公开安装包以 [发布页](https://github.com/Benjamin-can-fly/I-swear-I-did-work/releases/latest) 为准。
+> 已发布的 0.2.2 提供 Windows x64、Mac 苹果芯片与 Mac Intel 安装包。当前源码为 0.2.9，Windows、Mac 苹果芯片和 Mac Intel 均已通过原生应用检查；Mac 新增双击进入安装向导的 `.pkg`，并在 macOS 15 验证了安装、重复安装及安装后的保存与 PDF 导出。0.2.9 安装包尚未在 Releases 公开发布，公开下载以 [发布页](https://github.com/Benjamin-can-fly/I-swear-I-did-work/releases/latest) 为准。
+
+Mac 0.2.9 安装指南：[安装与使用说明](output/pdf/Work-Log-0.2.9-Mac-Install-Guide.pdf) · [安装报错指南](output/pdf/Work-Log-0.2.9-Mac-Troubleshooting.pdf)。`.pkg` 自动安装到“应用程序”，无需拖拽；目前没有 Apple Developer ID 签名和公证，首次安装或打开可能需要系统额外确认。
 
 0.2.9：截止日期留在填写框外，支持未填完的日期草稿；今日已办按实际完成日期合计并去重；使用频率图增加自适应刻度与圆角提示。
 
