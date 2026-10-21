@@ -1,5 +1,6 @@
 """Build on macOS. Uses only Apple's tools and Python's standard library."""
 import argparse, hashlib, json, os, plistlib, shutil, subprocess, sys, tarfile, tempfile, urllib.request
+import importlib.util
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -88,6 +89,9 @@ def build(arch):
         digest = hashlib.sha256(output.read_bytes()).hexdigest()
         Path(str(output)+'.sha256').write_text(digest+'  '+output.name+'\n',encoding='ascii')
         print(json.dumps({'package':str(output),'bytes':output.stat().st_size,'smoke':result},ensure_ascii=False))
+        spec = importlib.util.spec_from_file_location('macos_pkg', ROOT/'scripts/build-macos-pkg.py')
+        pkg_builder = importlib.util.module_from_spec(spec); spec.loader.exec_module(pkg_builder)
+        pkg_builder.build_pkg(ROOT, app, version, arch, temp, env, evidence)
 
 if __name__ == '__main__':
     parser=argparse.ArgumentParser();parser.add_argument('--arch',choices=['arm64','x64'],required=True)

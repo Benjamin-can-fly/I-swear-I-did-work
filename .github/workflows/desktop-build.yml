@@ -45,6 +45,7 @@ jobs:
           name: macos-${{ matrix.arch }}-installer
           path: |
             dist/*.dmg
+            dist/*.pkg
             dist/*.sha256
           if-no-files-found: error
       - uses: actions/upload-artifact@v4
