@@ -1,6 +1,6 @@
 (async()=>{
  const wait=async fn=>{for(let i=0;i<200;i++){if(fn())return;await new Promise(r=>setTimeout(r,100));}throw Error('等待界面超时: '+String(fn));};
- const click=s=>{const el=document.querySelector(s);if(!el)throw Error('未找到 '+s);el.click();};
+ const click=s=>{const el=document.querySelector(s);if(!el)throw Error('未找到 '+s);if(el.disabled||el.closest('[inert]'))throw Error('点击目标尚未可用: '+s+' '+JSON.stringify({disabled:el.disabled,inert:Boolean(el.closest('[inert]')),busy:el.getAttribute('aria-busy')}));el.click();};
  try{
   if(document.querySelector('#save-state')?.textContent.includes('数据读取失败'))throw Error('初始化失败：'+document.querySelector('#toast')?.textContent);
   if(!window.workJournalDesktop)throw Error('桌面桥接未注入');
@@ -30,12 +30,16 @@
   // Accept that real validation path too, but only for the deadline being edited.
   const deadlineNames=new Set(['due','dueTime','deadlineYear','deadlineMonth','deadlineDay','deadlineHour','deadlineMinute']);
   const invalidDeadline=new Set(),captureInvalid=e=>{if(!e.target.validity.valid)invalidDeadline.add(e.target.name);};
+  let deadlineSubmits=0;const captureSubmit=()=>{deadlineSubmits++;};
+  const deadlineState=()=>({submits:deadlineSubmits,invalid:[...invalidDeadline],disabled:taskForm.querySelector('[type=submit]').disabled,inert:taskForm.inert,busy:taskForm.querySelector('[type=submit]').getAttribute('aria-busy'),applied:taskForm.querySelector('.apply-time').getAttribute('aria-checked'),frequency:taskForm.elements.repeatFrequency.value,due:taskForm.elements.due.value,dueTime:taskForm.elements.dueTime.value,minute:taskForm.elements.deadlineMinute.value,editing:taskForm.querySelector('.composer-title').textContent,toast:document.querySelector('#toast span').textContent,validity:[...taskForm.elements].filter(el=>el.validity&&!el.validity.valid).map(el=>({name:el.name,message:el.validationMessage}))});
   taskForm.addEventListener('invalid',captureInvalid,true);
+  taskForm.addEventListener('submit',captureSubmit,true);
   taskForm.elements.deadlineMinute.value='';taskForm.elements.deadlineMinute.dispatchEvent(new Event('input',{bubbles:true}));
   if(taskForm.elements.dueTime.value!=='')throw Error('缺失分钟未清空待保存的截止时间');
   click('#new-task');
   try{await wait(()=>document.querySelector('#toast span').textContent.includes('补上日期和时间')||invalidDeadline.size>0);}
-  finally{taskForm.removeEventListener('invalid',captureInvalid,true);}
+  catch(e){throw Error(e.message+'\n截止日期提交状态: '+JSON.stringify(deadlineState()));}
+  finally{taskForm.removeEventListener('invalid',captureInvalid,true);taskForm.removeEventListener('submit',captureSubmit,true);}
   if([...invalidDeadline].some(name=>!deadlineNames.has(name)))throw Error('其他字段意外阻止截止日期校验: '+[...invalidDeadline].join(', '));
   if(!taskForm.querySelector('.composer-title').textContent.includes('编辑')||taskForm.elements.deadlineMinute.value!=='')throw Error('无效截止日期不应结束编辑或补填分钟');
   if((await(await fetch('/api/data')).json()).data.tasks.find(t=>t.id===taskData.id).dueTime!=='16:32')throw Error('不完整日期不应保存');

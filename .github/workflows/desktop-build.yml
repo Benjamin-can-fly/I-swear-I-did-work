@@ -1,8 +1,16 @@
 name: Build desktop previews
 on:
   workflow_call:
+    inputs:
+      verify:
+        type: boolean
+        default: true
   workflow_dispatch:
     inputs:
+      verify:
+        description: Run functional and native checks
+        type: boolean
+        default: true
       platform:
         description: Platforms to build
         type: choice
@@ -29,6 +37,7 @@ jobs:
     env:
       TZ: Asia/Shanghai
       WORKLOG_NETWORK_MODE: offline
+      WORKLOG_SKIP_NATIVE_TESTS: ${{ inputs.verify == false && github.event_name != 'push' && '1' || '0' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -39,8 +48,11 @@ jobs:
           python-version: '3.12'
       - run: npm ci
       - run: npm test
+        if: github.event_name == 'push' || inputs.verify != false
       - run: npx playwright install webkit
+        if: github.event_name == 'push' || inputs.verify != false
       - run: node tests/cross-platform-ui.mjs
+        if: github.event_name == 'push' || inputs.verify != false
       - run: python scripts/build-macos.py --arch ${{ matrix.arch }}
       - uses: actions/upload-artifact@v4
         with:
@@ -69,9 +81,11 @@ jobs:
           node-version: '24.18.0'
       - run: npm ci
       - run: npm test
+        if: github.event_name == 'push' || inputs.verify != false
       - run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/setup-desktop.ps1
       - run: npm run build:desktop
       - name: Ensure WebView2 runtime
+        if: github.event_name == 'push' || inputs.verify != false
         shell: pwsh
         run: |
           $check = Start-Process -FilePath ./dist/stage/WorkJournal.exe -ArgumentList '--check-runtime' -Wait -PassThru -WindowStyle Hidden
@@ -81,6 +95,7 @@ jobs:
             if ($check.ExitCode -ne 0) { throw 'WebView2 runtime installation failed' }
           }
       - run: node tests/desktop-native.mjs
+        if: github.event_name == 'push' || inputs.verify != false
       - uses: actions/upload-artifact@v4
         with:
           name: windows-x64-installer

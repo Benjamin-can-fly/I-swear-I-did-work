@@ -4,12 +4,19 @@ on:
     branches: [main]
     paths: ['package.json']
   workflow_dispatch:
+    inputs:
+      verify:
+        description: Run functional and native checks before publishing
+        type: boolean
+        default: true
 permissions:
   contents: write
   actions: read
 jobs:
   build:
     uses: ./.github/workflows/desktop-build.yml
+    with:
+      verify: ${{ github.event_name == 'push' || inputs.verify }}
   publish:
     needs: build
     runs-on: ubuntu-latest
@@ -25,10 +32,11 @@ jobs:
           pattern: '*-installer'
           merge-multiple: true
           path: packages
-      - name: Publish verified packages and manual
+      - name: Publish packages and manual
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
+          VERIFIED: ${{ github.event_name == 'push' || inputs.verify }}
         run: |
           VERSION=$(node -p "JSON.parse(require('fs').readFileSync('package.json','utf8')).version")
           cd packages
@@ -41,4 +49,8 @@ jobs:
             echo 'An existing release will not be overwritten.' >&2
             exit 1
           fi
-          gh release create "v$VERSION" ./* --target "$GITHUB_SHA" --title "Work Log $VERSION" --notes-file ../docs/RELEASE-0.2.13.md
+          cp ../docs/RELEASE-0.2.13.md ../release-notes.md
+          if [ "$VERIFIED" != "true" ]; then
+            printf '\n本次按要求跳过功能与原生应用测试。此前 Mac 日期校验检查未通过，不能将本包描述为通过 Mac 原生验收。编译、签名完整性、发布数据与文件校验仍执行。\n' >> ../release-notes.md
+          fi
+          gh release create "v$VERSION" ./* --target "$GITHUB_SHA" --title "Work Log $VERSION" --notes-file ../release-notes.md

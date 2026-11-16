@@ -57,25 +57,31 @@ def build(arch):
         # Ad-hoc integrity signing is not Developer ID signing or Apple notarization.
         run('codesign','--force','--sign','-',app)
         run('codesign','--verify','--deep','--strict',app)
-        # Exercise the actual bundled app on its matching architecture before packaging.
-        test_data = temp/'test-data'; test_data.mkdir()
-        env = {**os.environ,'WORKJOURNAL_TEST_MODE':'1','WORKJOURNAL_PORT':'43172',
-            'WORKJOURNAL_DATA_DIR':str(test_data),'WORKJOURNAL_TEST_SCRIPT':str(ROOT/'tests/desktop-smoke.js')}
+        # Explicit opt-out is reserved for builds requested without native testing.
+        skip_native = os.environ.get('WORKLOG_SKIP_NATIVE_TESTS') == '1'
+        env = dict(os.environ)
         evidence = ROOT/'artifacts'/f'macos-{arch}'; evidence.mkdir(parents=True,exist_ok=True)
-        try:
-            run(macos/'WorkJournal',env=env,timeout=150)
-        finally:
-            for item in test_data.iterdir():
-                if item.is_file(): shutil.copy2(item, evidence/item.name)
-            error = test_data/'smoke-error.txt'
-            if error.exists(): print(error.read_text(), flush=True)
-            for crash in (Path.home()/'Library/Logs/DiagnosticReports').glob('WorkJournal*'):
-                if crash.is_file(): shutil.copy2(crash, evidence/crash.name)
-        result = json.loads((test_data/'smoke-result.json').read_text())
-        if not result.get('success'): raise RuntimeError(f'Desktop smoke test failed: {result}')
-        if not (test_data/'report.pdf').read_bytes().startswith(b'%PDF-'): raise RuntimeError('PDF export missing')
-        evidence = ROOT/'artifacts'/f'macos-{arch}'; evidence.mkdir(parents=True,exist_ok=True)
-        for name in ['smoke-result.json','report.pdf']: shutil.copy2(test_data/name, evidence/name)
+        if skip_native:
+            result = {'status':'skipped','reason':'WORKLOG_SKIP_NATIVE_TESTS=1'}
+            (evidence/'smoke-result.json').write_text(json.dumps(result, indent=2), encoding='utf-8')
+        else:
+            # Exercise the actual bundled app on its matching architecture before packaging.
+            test_data = temp/'test-data'; test_data.mkdir()
+            env.update({'WORKJOURNAL_TEST_MODE':'1','WORKJOURNAL_PORT':'43172',
+                'WORKJOURNAL_DATA_DIR':str(test_data),'WORKJOURNAL_TEST_SCRIPT':str(ROOT/'tests/desktop-smoke.js')})
+            try:
+                run(macos/'WorkJournal',env=env,timeout=150)
+            finally:
+                for item in test_data.iterdir():
+                    if item.is_file(): shutil.copy2(item, evidence/item.name)
+                error = test_data/'smoke-error.txt'
+                if error.exists(): print(error.read_text(), flush=True)
+                for crash in (Path.home()/'Library/Logs/DiagnosticReports').glob('WorkJournal*'):
+                    if crash.is_file(): shutil.copy2(crash, evidence/crash.name)
+            result = json.loads((test_data/'smoke-result.json').read_text())
+            if not result.get('success'): raise RuntimeError(f'Desktop smoke test failed: {result}')
+            if not (test_data/'report.pdf').read_bytes().startswith(b'%PDF-'): raise RuntimeError('PDF export missing')
+            for name in ['smoke-result.json','report.pdf']: shutil.copy2(test_data/name, evidence/name)
         os.symlink('/Applications',volume/'Applications')
         (volume/'安装说明.txt').write_text('将“Work Log.app”拖入 Applications（应用程序），然后从应用程序打开。\n'
             '需要 macOS 13.5 或更新版本。此预览版尚未获得 Apple Developer ID 签名和公证，系统可能阻止首次打开。\n'

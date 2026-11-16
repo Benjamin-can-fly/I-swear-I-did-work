@@ -57,32 +57,37 @@ This installer is not Developer ID signed or notarized.</p></body></html>''', en
     output = root/'dist'/f'WorkLog-{version}-macos-{arch}.pkg'
     run('productbuild', '--distribution', distribution, '--resources', resources,
         '--package-path', package_dir, output)
-    # Exercise the delivered installer, not only the pre-packaged application.
-    installed = Path('/Applications/Work Log.app')
-    test_data = temp/'pkg-test-data'; test_data.mkdir()
-    sentinel = test_data/'keep-existing-data.txt'; sentinel.write_text('preserve me', encoding='utf-8')
-    for _ in range(2):
-        run('sudo', 'installer', '-pkg', output, '-target', '/')
-        if sentinel.read_text(encoding='utf-8') != 'preserve me':
-            raise RuntimeError('Reinstall changed data outside the app')
-    info = plistlib.loads((installed/'Contents/Info.plist').read_bytes())
-    if info['CFBundleShortVersionString'] != version:
-        raise RuntimeError('Installed application version mismatch')
-    run('codesign', '--verify', '--deep', '--strict', installed)
-    env = {**smoke_env, 'WORKJOURNAL_DATA_DIR':str(test_data), 'WORKJOURNAL_PORT':'43173'}
-    try:
-        run(installed/'Contents/MacOS/WorkJournal', env=env, timeout=150)
-    finally:
-        for name in ['smoke-result.json', 'smoke-error.txt', 'report.pdf']:
-            if (test_data/name).exists(): shutil.copy2(test_data/name, evidence/('pkg-'+name))
-    result = json.loads((test_data/'smoke-result.json').read_text())
-    if not result.get('success') or not (test_data/'report.pdf').read_bytes().startswith(b'%PDF-'):
-        raise RuntimeError(f'Installed package smoke test failed: {result}')
+    skip_native = os.environ.get('WORKLOG_SKIP_NATIVE_TESTS') == '1'
+    if skip_native:
+        result = {'status':'skipped','reason':'WORKLOG_SKIP_NATIVE_TESTS=1'}
+        (evidence/'pkg-smoke-result.json').write_text(json.dumps(result, indent=2), encoding='utf-8')
+    else:
+        # Exercise the delivered installer, not only the pre-packaged application.
+        installed = Path('/Applications/Work Log.app')
+        test_data = temp/'pkg-test-data'; test_data.mkdir()
+        sentinel = test_data/'keep-existing-data.txt'; sentinel.write_text('preserve me', encoding='utf-8')
+        for _ in range(2):
+            run('sudo', 'installer', '-pkg', output, '-target', '/')
+            if sentinel.read_text(encoding='utf-8') != 'preserve me':
+                raise RuntimeError('Reinstall changed data outside the app')
+        info = plistlib.loads((installed/'Contents/Info.plist').read_bytes())
+        if info['CFBundleShortVersionString'] != version:
+            raise RuntimeError('Installed application version mismatch')
+        run('codesign', '--verify', '--deep', '--strict', installed)
+        env = {**smoke_env, 'WORKJOURNAL_DATA_DIR':str(test_data), 'WORKJOURNAL_PORT':'43173'}
+        try:
+            run(installed/'Contents/MacOS/WorkJournal', env=env, timeout=150)
+        finally:
+            for name in ['smoke-result.json', 'smoke-error.txt', 'report.pdf']:
+                if (test_data/name).exists(): shutil.copy2(test_data/name, evidence/('pkg-'+name))
+        result = json.loads((test_data/'smoke-result.json').read_text())
+        if not result.get('success') or not (test_data/'report.pdf').read_bytes().startswith(b'%PDF-'):
+            raise RuntimeError(f'Installed package smoke test failed: {result}')
     digest = hashlib.sha256(output.read_bytes()).hexdigest()
     Path(str(output)+'.sha256').write_text(digest+'  '+output.name+'\n', encoding='ascii')
     (evidence/'pkg-verification.json').write_text(json.dumps({
-        'version':version,'arch':arch,'installation':'/Applications/Work Log.app',
-        'installAndReinstall':True,'installedAppSmoke':result,'sha256':digest,
+        'version':version,'arch':arch,'installation':None if skip_native else '/Applications/Work Log.app',
+        'installAndReinstall':'skipped' if skip_native else True,'installedAppSmoke':result,'sha256':digest,
         'developerIdSigned':False,'notarized':False}, indent=2), encoding='utf-8')
     print(json.dumps({'pkg':str(output),'sha256':digest,'installedSmoke':result}))
     return output
