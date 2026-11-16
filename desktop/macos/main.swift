@@ -2,6 +2,24 @@ import AppKit
 import WebKit
 import UniformTypeIdentifiers
 
+// The startup indicator follows Work Log's accent, not the macOS system accent.
+final class LaunchProgress: NSView {
+    var accent = NSColor.systemBlue
+    var track = NSColor.gray
+    private var timer: Timer?
+    private let started = Date()
+    override func viewDidMoveToSuperview() {
+        super.viewDidMoveToSuperview(); timer?.invalidate(); timer = nil
+        if superview != nil { timer = Timer.scheduledTimer(withTimeInterval: 1.0 / 30, repeats: true) { [weak self] _ in self?.needsDisplay = true } }
+    }
+    override func draw(_ dirtyRect: NSRect) {
+        track.setFill(); NSBezierPath(roundedRect: bounds, xRadius: 1.5, yRadius: 1.5).fill()
+        let phase = CGFloat((1 - cos(Date().timeIntervalSince(started) * .pi / 1.2)) / 2)
+        accent.setFill(); NSBezierPath(roundedRect: NSRect(x: phase * max(0, bounds.width - 35), y: 0, width: 35, height: bounds.height), xRadius: 1.5, yRadius: 1.5).fill()
+    }
+    deinit { timer?.invalidate() }
+}
+
 final class JournalApp: NSObject, NSApplicationDelegate, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler, WKDownloadDelegate {
     let testing = ProcessInfo.processInfo.environment["WORKJOURNAL_TEST_MODE"] == "1"
     let server = Process()
@@ -17,6 +35,13 @@ final class JournalApp: NSObject, NSApplicationDelegate, WKNavigationDelegate, W
     var origin = "http://127.0.0.1:43171"
     var dataURL: URL!
     var launchOverlay: NSView?
+    var launchLogo: NSImageView?
+    var launchProgress: LaunchProgress?
+    var accentColor = NSColor(calibratedRed: 70/255.0, green: 100/255.0, blue: 83/255.0, alpha: 1)
+    func parsedAccent(_ value: String) -> NSColor? {
+        guard value.range(of: "^#[0-9a-fA-F]{6}$", options: .regularExpression) != nil, let number = UInt32(value.dropFirst(), radix: 16) else { return nil }
+        return NSColor(calibratedRed: CGFloat((number >> 16) & 255)/255, green: CGFloat((number >> 8) & 255)/255, blue: CGFloat(number & 255)/255, alpha: 1)
+    }
     var english = false
     var darkMode = false
     func nativeText(_ zh: String, _ en: String) -> String { english ? en : zh }
@@ -24,7 +49,13 @@ final class JournalApp: NSObject, NSApplicationDelegate, WKNavigationDelegate, W
     func applyAppearance() {
         let appearance = NSAppearance(named: darkMode ? .darkAqua : .aqua)
         NSApp.appearance = appearance; window?.appearance = appearance
-        window?.backgroundColor = darkMode ? NSColor(calibratedRed: 0.067, green: 0.094, blue: 0.078, alpha: 1) : .white
+        window?.backgroundColor = darkMode ? NSColor(calibratedWhite: 18/255.0, alpha: 1) : .white
+        launchOverlay?.layer?.backgroundColor = window?.backgroundColor.cgColor
+        let rgb = accentColor.usingColorSpace(.sRGB) ?? accentColor
+        let lightness = (max(rgb.redComponent, max(rgb.greenComponent, rgb.blueComponent)) + min(rgb.redComponent, min(rgb.greenComponent, rgb.blueComponent))) / 2
+        launchProgress?.accent = darkMode ? (accentColor.blended(withFraction: 0.45, of: .white) ?? accentColor) : lightness > 0.6 ? (accentColor.blended(withFraction: 0.55, of: .black) ?? accentColor) : accentColor
+        launchProgress?.track = NSColor(calibratedWhite: darkMode ? 56/255.0 : 230/255.0, alpha: 1)
+        launchProgress?.needsDisplay = true
         if #available(macOS 12.0, *) { web?.underPageBackgroundColor = window?.backgroundColor ?? .white }
     }
     func trace(_ text: String) { if testing { FileHandle.standardError.write(Data((text + "\n").utf8)) } }
@@ -38,6 +69,8 @@ final class JournalApp: NSObject, NSApplicationDelegate, WKNavigationDelegate, W
             ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("WorkJournal/data")
         english = (try? String(contentsOf: appearanceURL("language.txt"), encoding: .utf8)) == "en"
         darkMode = (try? String(contentsOf: appearanceURL("mode.txt"), encoding: .utf8)) == "dark"
+        if let saved = try? String(contentsOf: appearanceURL("color.txt"), encoding: .utf8), let color = parsedAccent(saved.trimmingCharacters(in: .whitespacesAndNewlines)) { accentColor = color }
+        if let image = NSImage(contentsOf: appearanceURL("icon.png")) { NSApp.applicationIconImage = image }
         NSApp.appearance = NSAppearance(named: darkMode ? .darkAqua : .aqua)
         let menu = NSMenu(), appItem = NSMenuItem(), appMenu = NSMenu()
         appMenu.addItem(withTitle: nativeText("退出Work Log", "Quit Work Log"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
@@ -68,14 +101,14 @@ final class JournalApp: NSObject, NSApplicationDelegate, WKNavigationDelegate, W
         web.frame = host.bounds; web.autoresizingMask = [.width, .height]; host.addSubview(web)
         let overlay = NSView(frame: host.bounds); overlay.autoresizingMask = [.width, .height]; overlay.wantsLayer = true
         overlay.layer?.backgroundColor = (window.backgroundColor).cgColor
-        let logo = NSImageView(); logo.image = NSApp.applicationIconImage
+        let logo = NSImageView(); launchLogo = logo; logo.image = NSApp.applicationIconImage
         logo.widthAnchor.constraint(equalToConstant: 64).isActive = true; logo.heightAnchor.constraint(equalToConstant: 64).isActive = true
         let title = NSTextField(labelWithString: "Work Log"); title.font = .systemFont(ofSize: 22, weight: .medium)
         let status = NSTextField(labelWithString: nativeText("正在打开", "Opening")); status.font = .systemFont(ofSize: 12); status.textColor = .secondaryLabelColor
-        let progress = NSProgressIndicator(); progress.style = .bar; progress.isIndeterminate = true; progress.widthAnchor.constraint(equalToConstant: 150).isActive = true; progress.startAnimation(nil)
+        let progress = LaunchProgress(); launchProgress = progress; progress.widthAnchor.constraint(equalToConstant: 150).isActive = true; progress.heightAnchor.constraint(equalToConstant: 3).isActive = true
         let stack = NSStackView(views: [logo, title, status, progress]); stack.orientation = .vertical; stack.spacing = 14; stack.translatesAutoresizingMaskIntoConstraints = false
         overlay.addSubview(stack); NSLayoutConstraint.activate([stack.centerXAnchor.constraint(equalTo: overlay.centerXAnchor), stack.centerYAnchor.constraint(equalTo: overlay.centerYAnchor)])
-        host.addSubview(overlay); launchOverlay = overlay
+        host.addSubview(overlay); launchOverlay = overlay; applyAppearance()
         window.contentView = host; window.center()
         window.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true)
         Task { await start(port: port) }
@@ -154,7 +187,7 @@ final class JournalApp: NSObject, NSApplicationDelegate, WKNavigationDelegate, W
     func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
         guard message.frameInfo.isMainFrame, local(message.frameInfo.request.url), message.webView === web,
               let body = message.body as? [String: Any] else { return }
-        if body["type"] as? String == "app-ready" { launchOverlay?.removeFromSuperview(); launchOverlay = nil; return }
+        if body["type"] as? String == "app-ready" { launchOverlay?.removeFromSuperview(); launchOverlay = nil; launchLogo = nil; launchProgress = nil; return }
         if body["type"] as? String == "set-preferences", let mode = body["mode"] as? String, let language = body["language"] as? String, ["dark", "light"].contains(mode), ["en", "zh-CN"].contains(language) {
             darkMode = mode == "dark"; english = language == "en"
             try? FileManager.default.createDirectory(at: appearanceURL("mode.txt").deletingLastPathComponent(), withIntermediateDirectories: true)
@@ -170,8 +203,15 @@ final class JournalApp: NSObject, NSApplicationDelegate, WKNavigationDelegate, W
             return
         }
         if body["type"] as? String == "set-theme" {
-            if let encoded = body["png"] as? String, encoded.count < 150000,
-               let data = Data(base64Encoded: encoded), let icon = NSImage(data: data) { NSApp.applicationIconImage = icon }
+            if let value = body["color"] as? String, let color = parsedAccent(value),
+               let encoded = body["png"] as? String, encoded.count < 150000,
+               let data = Data(base64Encoded: encoded), let icon = NSImage(data: data) {
+                accentColor = color; NSApp.applicationIconImage = icon; launchLogo?.image = icon
+                try? FileManager.default.createDirectory(at: appearanceURL("color.txt").deletingLastPathComponent(), withIntermediateDirectories: true)
+                try? data.write(to: appearanceURL("icon.png"), options: .atomic)
+                try? value.write(to: appearanceURL("color.txt"), atomically: true, encoding: .utf8)
+                applyAppearance()
+            }
             return
         }
         guard body["type"] as? String == "export-report", let html = body["html"] as? String, let title = body["title"] as? String else { return }

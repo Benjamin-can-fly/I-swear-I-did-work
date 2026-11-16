@@ -5,6 +5,18 @@
 .window-controls button{display:grid;place-items:center;width:44px;height:32px;padding:0;font-size:16px;border:0;border-radius:0;box-shadow:none;background:transparent}
 .window-controls button svg{width:12px;height:12px;stroke-width:1.3}
 .window-controls button:focus-visible{outline-offset:-3px}
+/* Window commands belong to the window, not the scrolling document. */
+[data-desktop=windows] main{padding-top:32px}
+[data-desktop=windows] main>.topbar{position:fixed;inset:0 0 auto 208px;z-index:80;height:32px;min-height:32px}
+[data-desktop=windows] .window-controls{margin:0;height:32px}
+@media(max-width:1200px){[data-desktop=windows] main>.topbar{left:180px}}
+@media(max-width:1000px){[data-desktop=windows] main>.topbar{left:168px}}
+@media(max-width:700px){
+ [data-desktop=windows] body{padding-top:32px}
+ [data-desktop=windows] main{padding-top:0}
+ [data-desktop=windows] main>.topbar{left:0;height:32px;min-height:32px}
+ [data-desktop=windows] .sidebar{top:32px}
+}
 .workspace{padding-top:10px;overflow:visible}
 .page-heading{min-height:51px;margin-bottom:10px}
 .inline-composer .clear-composer{background:transparent;border:0;border-radius:0;box-shadow:none}
@@ -14,6 +26,12 @@
 /* Animated icon/text must not become separate pointer targets during a press. */
 .primary>*{pointer-events:none}
 .today-overview{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:4px 0 22px;font-size:12px;color:var(--muted)}
+.today-stats [data-today-stat]{display:inline-flex;align-items:baseline;column-gap:3px;min-height:28px;padding:4px 1px;color:var(--muted);background:none;border:0;border-radius:3px;font:inherit;cursor:pointer;transition:color .15s ease}
+.today-stats [data-today-stat] strong{font-variant-numeric:tabular-nums}
+.today-stats [data-today-stat]:is(:hover,:focus-visible),.today-stats [data-today-stat]:is(:hover,:focus-visible) strong{color:var(--accent-readable,var(--ink))}
+.today-stats [data-today-stat]:is(:hover,:focus-visible) strong{text-decoration:underline;text-underline-offset:3px}
+.today-stat-back{margin-bottom:6px}
+[data-today-stat-detail] #task-composer-slot,[data-today-stat-detail] #tasks-page :is(.timeline-toolbar,.timeline-heading,.task-toolbar,.task-column-head){display:none}
 .today-add{display:flex;align-items:center;gap:8px;white-space:nowrap}
 .today-grid{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(260px,1fr);gap:32px;align-items:start}
 .today-list>header,.daily-card>header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-bottom:16px;border-bottom:1px solid var(--line)}
@@ -78,7 +96,16 @@
 #daily-plans{border-top:1px solid var(--line);margin-top:10px}.daily-plans{margin:0;border:0}.daily-plans>summary{padding:10px 0 0;font-size:11px}.daily-plan-row{padding:11px 0}.daily-plan-row small{font-size:11px}.daily-plans-body{padding-top:12px}.daily-plans-body>.text-button{font-size:11px}
 .today-stats{display:flex;flex-wrap:wrap;gap:16px}.today-stats strong{color:var(--ink);margin-left:4px;font-weight:600}.today-completed summary,.upcoming-plans summary{cursor:pointer;font-size:11px;color:var(--muted);padding:12px 0}.today-completed summary span,.upcoming-plans summary span{margin-left:6px}.plan-frequency-tabs{display:flex;gap:12px;margin:13px 0 4px}.plan-frequency-tabs button{font-size:11px;color:var(--muted);padding:5px 0;border-bottom:2px solid transparent}.plan-frequency-tabs [aria-pressed=true]{color:var(--accent-readable,var(--green));border-bottom-color:currentColor}.daily-card>header .text-button{font-size:11px}.quota-plan{position:relative}.plan-progress{display:block;font-size:11px;color:var(--muted);margin:-6px 0 8px 30px}.quota-plan .today-task{border-bottom:0}.quota-plan{border-bottom:1px solid var(--line)}
 .plan-manager-heading{display:flex;align-items:center;justify-content:space-between;margin:22px 0 12px}.today-plan-manager{max-width:1000px}.today-plan-manager .daily-plan-row strong{font-size:14px}
+.composer-plan-link{justify-self:start;align-self:start;width:fit-content;font-size:12px;color:var(--accent-readable,var(--ink))}
+.today-plan-manager .daily-plan-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:12px}
 @media(prefers-reduced-motion:no-preference){.today-add:hover svg{animation:pen-flick .19s ease-out}.clear-composer:hover svg,[data-window=close]:hover svg,[data-remove-slot]:hover{animation:close-wiggle .18s ease-out}}
 @keyframes pen-flick{0%,100%{transform:rotate(0)}40%{transform:rotate(-12deg) translateY(-1px)}75%{transform:rotate(5deg)}}
 @media(max-width:1050px){.repeat-option{margin-left:0}.inline-composer .composer-tools{flex-wrap:wrap}}
 @media(max-width:700px){.plan-count{flex-wrap:wrap}.repeat-option select{width:108px}.plan-frequency-tabs{gap:14px}.today-stats{gap:10px}.today-overview{align-items:flex-start}.daily-plan-row>div{flex-basis:100%}}
+
+/* Keep a study task readable without turning its instructions into one paragraph. */
+.today-task-notes{display:grid;gap:8px;margin-top:8px;font-size:12px;line-height:1.75;color:var(--muted);overflow-wrap:anywhere}
+.today-task-notes p{margin:0;white-space:pre-wrap}
+.plan-note-section{display:grid;grid-template-columns:2.6em minmax(0,1fr);gap:9px;align-items:baseline}
+.plan-note-section>strong{font-size:11px;font-weight:500;color:var(--ink)}
+.weekday-option{display:flex;align-items:center;gap:8px;font-size:11px;white-space:nowrap;flex-shrink:0}.weekday-option select{padding:5px 8px;font-size:11px;max-width:160px;background:var(--surface);color:var(--ink)}

@@ -21,6 +21,8 @@ if($LASTEXITCODE -ne 0 -or $login -ne $Owner){throw "Please log in as $Owner. Cu
 if(!(Test-Path -LiteralPath '.git')){git init -b main;if($LASTEXITCODE -ne 0){throw 'Git init failed'}}
 git config user.name $Owner
 git config user.email "$Owner@users.noreply.github.com"
+& node (Join-Path $projectRoot 'scripts/release-privacy.mjs') --source $projectRoot
+if($LASTEXITCODE -ne 0){throw 'Private or generated files detected. Upload stopped.'}
 git add --all
 if($LASTEXITCODE -ne 0){throw 'Git staging failed'}
 $tracked=@(git ls-files)

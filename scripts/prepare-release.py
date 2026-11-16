@@ -23,9 +23,13 @@ for name in ['package.json','package-lock.json','index.html','report.html','READ
  files.append(ROOT/name)
 for name in ['render-icon.mjs','build-icons.py','build-desktop.ps1','build-macos.py','setup-desktop.ps1','start.ps1','stop.ps1','publish-github.ps1','prepare-release.py','create-guide.py','create-github-guide.py']:
  files.append(ROOT/'scripts'/name)
+for name in ['install-capture-model.ps1','install-capture-model-macos.mjs','release-privacy.mjs','create-current-guide.py']:
+ if (ROOT/'scripts'/name).exists():files.append(ROOT/'scripts'/name)
 for p in (ROOT/'tests').iterdir():
  if p.is_file() and p.name!='interaction.mjs':files.append(p)
 files.append(ROOT/'docs/DEVELOPMENT.md')
+for name in ['User-guide.md','Quick-capture.md','Local-language-model.md','Task-history-and-bulk-actions.md',f'RELEASE-{VERSION}.md']:
+ if (ROOT/'docs'/name).exists():files.append(ROOT/'docs'/name)
 files.extend((ROOT/'docs').glob('ACCEPTANCE-*.md'))
 files.extend((ROOT/'docs/images').glob('*.png'))
 files.extend((ROOT/'output/pdf').glob('*.pdf'))
@@ -44,7 +48,8 @@ assert all(rel.isascii() for rel in manifest), 'Source filenames must be ASCII'
 assert not any(p.startswith(('data/','artifacts/','node_modules/','.build-tools/','dist/')) or p=='.env' for p in manifest)
 assert json.loads((source/'package.json').read_text())['version']==VERSION
 assert f"'{VERSION}'" in (source/'src/lib/version.js').read_text()
-archive=delivery/f'WorkJournal-{VERSION}-source.zip'
+subprocess.run(['node',str(ROOT/'scripts/release-privacy.mjs'),'--source',str(source)],check=True)
+archive=delivery/f'WorkLog-{VERSION}-source.zip'
 with zipfile.ZipFile(archive,'w',zipfile.ZIP_DEFLATED) as z:
  for rel in sorted(manifest):z.write(source/rel,rel)
 with zipfile.ZipFile(archive) as z:
@@ -52,11 +57,11 @@ with zipfile.ZipFile(archive) as z:
  assert all(hashlib.sha256(z.read(rel)).hexdigest()==digest for rel,digest in manifest.items())
 for name in [f'WorkLog-{VERSION}-windows-x64-setup.exe',f'WorkLog-{VERSION}-windows-x64-setup.exe.sha256']:
  shutil.copy2(ROOT/'dist'/name,packages/name)
-mac_packages = list((ROOT/'dist').glob(f'WorkLog-{VERSION}-macos-*.dmg'))
+mac_packages = list((ROOT/'dist').glob(f'WorkLog-{VERSION}-macos-*.dmg'))+list((ROOT/'dist').glob(f'WorkLog-{VERSION}-macos-*.pkg'))
 for package in mac_packages:
  shutil.copy2(package,packages/package.name)
  shutil.copy2(Path(str(package)+'.sha256'),packages/(package.name+'.sha256'))
-mac_status = ('Mac 安装包已提供：'+', '.join(p.name for p in mac_packages)) if len(mac_packages)==2 else 'Mac 安装包尚未补齐，需对应的原生构建和运行测试通过。'
+mac_status = ('Mac 安装包已提供：'+', '.join(p.name for p in mac_packages)) if {p.name for p in mac_packages}>={f'WorkLog-{VERSION}-macos-arm64.pkg',f'WorkLog-{VERSION}-macos-x64.pkg'} else 'Mac 安装包尚未补齐，需对应的原生构建和运行测试通过。'
 (packages/'Mac-Package-Status.txt').write_text(mac_status+'\n不要把 Windows EXE 或源码 ZIP 发给 Mac 用户作为安装包。\n',encoding='utf-8-sig')
 for p in (ROOT/'output/pdf').glob('*.pdf'):shutil.copy2(p,guides/p.name)
 shutil.copy2(ROOT/'docs'/f'ACCEPTANCE-{VERSION}.md',guides/'Acceptance-Checklist.md')
@@ -65,8 +70,8 @@ shutil.copy2(ROOT/'docs'/f'ACCEPTANCE-{VERSION}.md',guides/'Acceptance-Checklist
 
 01-Source：干净源码及 Git 仓库，可继续修改并同步到公开仓库。
 02-Installers：Windows 安装包。{mac_status}
-03-Guides：17 页使用说明、5 页分享和 GitHub 教程、最终需求核对表。
-WorkJournal-{VERSION}-source.zip：干净源码备份。请解压后上传文件，不要只上传这个 ZIP 当仓库。
+03-Guides：当前使用说明、分享和 GitHub 教程、需求核对表。
+WorkLog-{VERSION}-source.zip：干净源码备份。请解压后上传文件，不要只上传这个 ZIP 当仓库。
 
 用户名 Benjamin-can-fly；仓库 I-swear-I-did-work；公开；MIT。
 后续更新可运行 Actions 中的 Build desktop previews，验证后再发布新版。

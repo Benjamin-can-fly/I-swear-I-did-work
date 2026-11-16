@@ -1,5 +1,87 @@
 // Interface copy only. Interpolated user content is never translated.
 export const en=Object.fromEntries(`
+配置 Gemini API 密钥|Connect Gemini
+密钥仅保存在本机；输入将发送给 Gemini。|Your key stays on this computer. Your notes are sent to Gemini.
+保存配置|Save configuration
+配置未保存，请重试|Couldn’t save the configuration. Try again.
+
+安排|Schedule
+不重复|One-off
+正在整理…|Putting your note in order…
+部分内容需要你核对|A few details need your review
+离线记录 · 日期和次数请核对|Offline notes · check dates and counts
+暂时没有整理好，原文还在|Couldn’t organize this note. Your text is still here.
+重试|Try again
+{0} 项 · 查看/修改|{0} items · Review / edit
+请等待整理完成，或点击重试；原文会保留|Wait for the result or try again. Your original note is kept.
+
+随手记|Quick capture
+{0} 项|{0} items
+今日统计：待办|To do
+比如：刚交了报告。每天晚上 8 点记单词。|Try “Sent the report. Practice vocabulary every evening at 8.”
+保存|Save
+计划安排|Schedule
+执行时间|Task timing
+归档|Details
+指定截止时间|Set a deadline
+随手记尚未就绪|Quick capture isn’t ready yet.
+事项内容|Item text
+起止日期与提醒|Dates and reminders
+‹ 返回待办事项|‹ Back to tasks
+计划操作 {0}|Actions for {0}
+请先保存或取消当前编辑|Save or cancel the current edit first.
+保存所选|Save items
+保存记录|Save entry
+保存待办|Save task
+选择去向|Choose what to do
+选择对应待办|Choose the matching task
+完成已有待办|Complete existing task
+不保存|Leave out
+安排日期|Scheduled for
+日期用途|Date type
+没有可保存的事项|Nothing to save
+请先选择这条内容的去向|Choose what to do with each unresolved line first
+待办已变化，请重新选择|The task changed. Check the match again
+请检查日期|Check the date
+已保存 {0} 项|Saved {0} items
+查看全部逾期|View all overdue
+天|days
+/ 最近 {0} 天|/ last {0} days
+项 ↗|items ↗
+计划周期|Plan period
+截止提醒|Deadlines
+已逾期 {0} 项|{0} overdue
+24 小时内到期 {0} 项|{0} due within 24 hours
+24 小时内到期|Due within 24 hours
+当天有 {0} 项每日计划未完成|{0} daily plan items missed that day
+已补做|Caught up later
+每日计划完成情况|Daily plan follow-through
+有多少天没完成每日计划|Days with unfinished daily plans
+按未完成的日期计数，同一天多项只算一天；今天尚未结束，不计入。|One day counts once, even with several missed items. Today is still in progress.
+未按日完成|Missed on the day
+当前逾期|Currently overdue
+每日完成情况|Daily history
+{0} 项未按日完成|{0} items missed on the day
+无漏做记录|No missed items recorded
+统计已生成的每日计划；升级后会补记离线期间的漏做。暂停、跳过和已删除事项不计入，升级前未生成的历史不作推测。|Based on generated daily plans. From this update onward, offline days are tracked too. Paused, skipped and deleted items are excluded; older gaps are not guessed.
+退出多选|Done selecting
+批量管理|Select items
+已选 {0} 项|{0} selected
+全选当前列表|Select this list
+清空选择|Clear selection
+删除所选|Delete selected
+删除待办会一并删除它同步的工作记录；每日计划设置保留。|Deleting a task also removes its synced journal entry. Plan settings stay in place.
+只删除所选记录，不删除来源待办。|Only the selected entries are deleted. Their source tasks stay in place.
+清除截止筛选|Show all deadlines
+已删除所选，15 秒内可撤销|Selected items deleted. Undo is available for 15 seconds.
+执行日|Active days
+周一至周日|Every day
+周一至周五|Monday–Friday
+仅工作日（周一至周五）|Weekdays only (Mon–Fri)
+复习|Review
+练习|Practice
+订正|Corrections
+仅工作日|Weekdays only
 截止年|Deadline year
 截止月|Deadline month
 截止日|Deadline day
@@ -54,6 +136,9 @@ export const en=Object.fromEntries(`
 提前显示 · 分钟|Show ahead of time · minutes
 0 表示准时显示，最多提前 24 小时。|Use 0 to show on time, or up to 1,440 minutes early.
 应用运行时提醒|Remind me while the app is running
+Windows 系统提醒|Windows notifications
+关闭应用后，Windows 仍会提醒。每次打开会续排未来 30 天内最早的 64 次提醒。|Windows can remind you after you close the app. Opening it queues the next 64 reminders within 30 days.
+Windows 未能安排提醒，请检查系统通知设置。|Windows could not schedule reminders. Check your notification settings.
 关闭应用后不会提醒；下次打开会保留未完成事项。|Reminders need the app running. Unfinished tasks stay for next time.
 同时更新本周期未完成的安排|Also update unfinished items in this period
 默认更新尚未到时的安排；已完成的记录保留。更改周期从下个周期生效。|Future times update by default. Completed entries stay as they are. Frequency changes start next period.
@@ -591,5 +676,39 @@ Object.assign(en,{
  'PDF 排版失败，请重试':'Report layout failed. Please try again.',
  'PDF 导出未完成，请重试':'PDF export did not finish. Please try again.',
  '已取消导出':'Export canceled',
- '所选内容过多，请分批导出。':'Too much content selected. Export it in smaller groups.'
+ '所选内容过多，请分批导出。':'Too much content selected. Export it in smaller groups.',
+ '这条内容也在另一窗口修改了。最新内容已同步，你的输入草稿仍保留；请对照后再修改。':'This entry was also edited in another window. The latest data is now available and your draft is preserved. Review the changes before editing again.',
+ '数据正在连续更新，你的草稿已保留，请稍后再保存。':'Data is still being updated. Your draft is preserved; try saving again shortly.',
+ '删除本次':'Delete this occurrence',
+ '删除整个计划':'Delete entire plan',
+ '计划已删除，已完成和历史记录保留':'Plan deleted. Completed work and past entries are kept.',
+ '下一步：':'Next: ',
+ '正在整理你的安排…':'Tidying up your plans…',
+ '已整理，可逐项修改':'Ready. You can edit each item.',
+ '本地模型未安装，当前为基础识别，请核对预览':'The local model is not installed. Please check this basic preview.',
+ '整理未完成，原文和预览已保留':'Couldn’t finish. Your text and preview are still here.',
+ '使用当前预览，请核对后保存':'Using this preview. Check it before saving.',
+ '已保留你的修改':'Your edits are kept.',
+ '重新整理':'Try again',
+ '使用当前预览':'Use this preview',
+ '接着：':'Then: ',
+ '前一步':'After',
+ '前一步未保存':'Previous task is not saved',
+ '独立任务':'Independent task',
+ '整理未完成，请重试或检查当前预览后保存':'Try again, or review and use the current preview before saving.',
+ '请检查后续任务的顺序':'Check the task sequence.',
+ '前一步未保存，请重新选择后续任务的前一步':'Choose a saved previous task for the follow-up.',
+ '前一步已删除，请先修改关联任务':'The previous task was deleted. Update the link first.',
+ '请先完成前一步任务':'Finish the previous task first.',
+ '前一步任务关联不正确':'The previous task link is invalid.',
+ '任务不能等待自己完成':'A task cannot wait for itself.',
+ '周期计划暂不支持前后任务关联':'Recurring plans do not support task dependencies yet.',
+ '前后任务不能形成循环':'Tasks cannot depend on each other in a loop.',
+ '完成哪一项后开始':'Start after completing',
+ '不等待其他任务':'No prerequisite',
+ '等待前一步':'Waiting for the previous task',
+ '前一步已删除，修改关联':'Previous task deleted. Update the link.',
+ '前一步：':'After: ',
+ '后续任务':'Follow-up tasks',
+ '部分表达保留原文，请核对':'Some wording was kept as written. Please check it.'
 });

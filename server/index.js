@@ -1,3 +1,4 @@
+import {inferCapture,parseCapture,captureModelStatus,warmCaptureModel,setupCaptureModel,captureComponentStatus,configureCaptureModel} from './capture-model.js';
 import http from 'node:http';
 import path from 'node:path';
 import {readFile} from 'node:fs/promises';
@@ -18,8 +19,22 @@ http.createServer(async(req,res)=>{
   const url=new URL(req.url,`http://127.0.0.1:${port}`);
   if(![`127.0.0.1:${port}`,`localhost:${port}`].includes(req.headers.host))return json(res,403,{error:'不允许的主机'});
   if(req.headers.origin&&!['http://127.0.0.1:'+port,'http://localhost:'+port].includes(req.headers.origin))return json(res,403,{error:'不允许跨站请求'});
-  if(url.pathname==='/api/status'&&req.method==='GET')return json(res,200,{app:'work-journal',version:VERSION,dataDirectory:path.resolve(process.env.DATA_DIR||'data'),ai:false,instance:process.env.INSTANCE_TOKEN||null});
+  if(url.pathname==='/api/status'&&req.method==='GET'){const captureAI=await captureComponentStatus();return json(res,200,{app:'work-journal',version:VERSION,dataDirectory:path.resolve(process.env.DATA_DIR||'data'),ai:captureAI.configured,captureAI,instance:process.env.INSTANCE_TOKEN||null});}
+  if(url.pathname==='/api/capture-intent'&&req.method==='POST'){
+   if(!req.headers['content-type']?.startsWith('application/json'))return json(res,415,{error:'Expected JSON'});
+   const input=await body(req),abort=new AbortController();res.on('close',()=>abort.abort());
+   const result=await inferCapture(input.phrases,abort.signal);if(!res.destroyed)json(res,200,result);return;
+  }
   if(['/api/organize','/api/summarize'].includes(url.pathname))return json(res,410,{error:'总结功能已下架'});
+  if(url.pathname==='/api/capture-config'&&req.method==='POST'){if(!req.headers['content-type']?.startsWith('application/json'))return json(res,415,{error:'Expected JSON'});return json(res,200,await configureCaptureModel(await body(req)));}
+  if(url.pathname==='/api/capture-status'&&req.method==='GET')return json(res,200,await captureModelStatus());
+  if(url.pathname==='/api/capture-setup'&&req.method==='POST')return json(res,202,await setupCaptureModel());
+  if(url.pathname==='/api/capture-warmup'&&req.method==='POST')return json(res,200,await warmCaptureModel());
+  if(url.pathname==='/api/capture-parse'&&req.method==='POST'){
+   if(!req.headers['content-type']?.startsWith('application/json'))return json(res,415,{error:'Expected JSON'});
+   const input=await body(req),abort=new AbortController();res.on('close',()=>abort.abort());
+   const result=await parseCapture(input,abort.signal);if(!res.destroyed)json(res,200,result);return;
+  }
   if(url.pathname==='/api/attachments'&&req.method==='POST')return json(res,200,await uploadAttachment(req,url.searchParams.get('name')));
   const attachment=url.pathname.match(/^\/api\/attachments\/([a-f0-9-]{36})(\/thumbnail)?$/);
   if(attachment&&req.method==='GET')return await attachmentResponse(res,attachment[1],Boolean(attachment[2]));
@@ -40,5 +55,5 @@ http.createServer(async(req,res)=>{
   if(!['index.html','report.html'].includes(target)&&!/^src\/[a-zA-Z0-9_./-]+\.(js|css)$/.test(target)&&!/^src\/assets\/[a-zA-Z0-9_-]+\.(svg|png)$/.test(target))return json(res,404,{error:'未找到'});
   const file=path.resolve(root,target);if(!file.startsWith(root+path.sep))return json(res,403,{error:'禁止访问'});
   const content=await readFile(file);const ext=path.extname(file);res.writeHead(200,{'Content-Type':{'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.svg':'image/svg+xml','.png':'image/png'}[ext],'Cache-Control':'no-cache','X-Content-Type-Options':'nosniff','Content-Security-Policy':"default-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"});res.end(content);
- }catch(e){if(!res.headersSent)json(res,e.code==='ENOENT'?404:400,{error:e.message||'操作失败'});else res.end();}
+ }catch(e){if(!res.headersSent&&!res.destroyed)json(res,e.status||(e.code==='ENOENT'?404:400),{error:e.message||'操作失败',...(e.code?{code:e.code}:{})});else if(!res.destroyed)res.end();}
 }).listen(port,'127.0.0.1',()=>{console.log(`工作日志已启动 http://127.0.0.1:${port}`);if(process.env.INSTANCE_TOKEN)console.log('WORKJOURNAL_READY '+process.env.INSTANCE_TOKEN);});

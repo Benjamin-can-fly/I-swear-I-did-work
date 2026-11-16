@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
@@ -26,33 +26,71 @@ static class Program {
   for(int i=0;i+1<args.Length;i++)if(args[i]=="--data-dir")Environment.SetEnvironmentVariable("WORKJOURNAL_DATA_DIR",Path.GetFullPath(args[i+1]));
   for(int i=0;i+1<args.Length;i++)if(args[i]=="--port")Environment.SetEnvironmentVariable("WORKJOURNAL_PORT",args[i+1]);
   if(args.Length>0&&args[0]=="--check-runtime"){try{CoreWebView2Environment.GetAvailableBrowserVersionString();Environment.ExitCode=0;}catch{Environment.ExitCode=2;}return;}
+  bool openToday=Array.IndexOf(args,"--open-today")>=0;
+  if(!testing)WindowsNotifications.InitializeIdentity();
   Application.EnableVisualStyles();Application.SetCompatibleTextRenderingDefault(false);
   Application.ThreadException+=(s,e)=>{string dir=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"WorkJournal");Directory.CreateDirectory(dir);File.WriteAllText(Path.Combine(dir,"startup-error.txt"),e.Exception.ToString());Application.Exit();};
   bool fresh;
   using(var mutex=new Mutex(true,testing?"Local\\WorkJournal-Test":"Local\\WorkJournal-Desktop",out fresh)){
-   if(!fresh){foreach(var p in Process.GetProcessesByName("WorkJournal")){if(p.Id!=Process.GetCurrentProcess().Id&&p.MainWindowHandle!=IntPtr.Zero){SendMessage(p.MainWindowHandle,0x804D,IntPtr.Zero,IntPtr.Zero);SetForegroundWindow(p.MainWindowHandle);break;}}return;}
-   Application.Run(new JournalWindow(testing));
+   if(!fresh){if(!testing)ActivateExisting(openToday);return;}
+   Application.Run(new JournalWindow(testing,openToday));
   }
  }
- [DllImport("user32.dll")] static extern bool SetForegroundWindow(IntPtr window);
- [DllImport("user32.dll")] static extern bool ShowWindow(IntPtr window,int command);
- [DllImport("user32.dll")] static extern IntPtr SendMessage(IntPtr window,int message,IntPtr w,IntPtr l);
+ internal const int ActivateMessage=0x804D;
+ static void ActivateExisting(bool openToday){
+  using(var current=Process.GetCurrentProcess()){
+   for(int attempt=0;attempt<30;attempt++){
+    foreach(var match in Process.GetProcessesByName(current.ProcessName))using(match){
+     try{
+      if(match.Id==current.Id||match.SessionId!=current.SessionId||match.MainWindowHandle==IntPtr.Zero
+       ||!String.Equals(match.MainModule.FileName,Application.ExecutablePath,StringComparison.OrdinalIgnoreCase))continue;
+      AllowSetForegroundWindow(match.Id);
+      if(PostMessage(match.MainWindowHandle,ActivateMessage,openToday?(IntPtr)1:IntPtr.Zero,IntPtr.Zero))return;
+     }catch(InvalidOperationException){}catch(System.ComponentModel.Win32Exception){}
+    }
+    Thread.Sleep(75);
+   }
+  }
+ }
+ [DllImport("user32.dll")] static extern bool AllowSetForegroundWindow(int pid);
+ [DllImport("user32.dll")] static extern bool PostMessage(IntPtr window,int message,IntPtr w,IntPtr l);
 }
 sealed class LaunchPanel:Panel {
  public LaunchPanel(){SetStyle(ControlStyles.UserPaint|ControlStyles.AllPaintingInWmPaint|ControlStyles.OptimizedDoubleBuffer|ControlStyles.ResizeRedraw,true);UpdateStyles();}
+}
+static class BackgroundWindowPolicy {
+ internal static CreateParams Apply(CreateParams value){
+  // Transparency and ShowInTaskbar=false alone do not exclude a window from Alt+Tab.
+  value.ExStyle=(value.ExStyle|0x00000080|0x08000000)&~0x00040000;
+  return value;
+ }
+}
+sealed class BackgroundWindow:Form {
+ public BackgroundWindow(){ShowInTaskbar=false;Opacity=0;FormBorderStyle=FormBorderStyle.None;Text="";}
+ protected override bool ShowWithoutActivation{get{return true;}}
+ protected override CreateParams CreateParams{get{return BackgroundWindowPolicy.Apply(base.CreateParams);}}
 }
 class JournalWindow:Form {
  [DllImport("user32.dll")] static extern uint GetDpiForSystem();
  [DllImport("user32.dll")] static extern uint GetDpiForWindow(IntPtr window);
  [DllImport("dwmapi.dll")] static extern int DwmSetWindowAttribute(IntPtr window,int attribute,ref int value,int size);
  [StructLayout(LayoutKind.Sequential)] struct WindowRect{public int Left,Top,Right,Bottom;}
- NotifyIcon reminderIcon;
+ bool pendingToday,appReady,closeAfterReminders;int pendingReminderSyncs;
+ readonly SemaphoreSlim reminderSync=new SemaphoreSlim(1,1);
  WebView2 web;Process server;CoreWebView2Environment environment;
  readonly LaunchPanel loading=new LaunchPanel{Dock=DockStyle.Fill,BackColor=Color.FromArgb(248,250,248)};
  Image launchImage;
+ Icon smallWindowIcon,largeWindowIcon;string shellIconPath;
+ Color accentColor=Color.FromArgb(70,100,83);
+ Color LaunchInk{get{return darkMode?Color.FromArgb(232,232,232):Color.FromArgb(48,48,48);}}
+ Color LaunchMuted{get{return darkMode?Color.FromArgb(166,166,166):Color.FromArgb(100,100,100);}}
+ Color LaunchTrack{get{return darkMode?Color.FromArgb(56,56,56):Color.FromArgb(230,230,230);}}
+ Color LaunchAccent{get{return darkMode?Color.FromArgb((int)(accentColor.R*.55+255*.45),(int)(accentColor.G*.55+255*.45),(int)(accentColor.B*.55+255*.45)):accentColor.GetBrightness()>.6?Color.FromArgb((int)(accentColor.R*.45),(int)(accentColor.G*.45),(int)(accentColor.B*.45)):accentColor;}}
  readonly System.Windows.Forms.Timer launchTimer=new System.Windows.Forms.Timer{Interval=16};
  string launchPhase="正在打开";bool darkMode,english;
  readonly string dataDir,origin;readonly bool testing;bool closing,exporting;
+ protected override bool ShowWithoutActivation{get{return testing||base.ShowWithoutActivation;}}
+ protected override CreateParams CreateParams{get{var value=base.CreateParams;return testing?BackgroundWindowPolicy.Apply(value):value;}}
  readonly JavaScriptSerializer json=new JavaScriptSerializer{MaxJsonLength=16000000};
  readonly System.Collections.Generic.Dictionary<string,long> startup=new System.Collections.Generic.Dictionary<string,long>();
  [DllImport("user32.dll")] static extern bool ReleaseCapture();
@@ -73,21 +111,50 @@ class JournalWindow:Form {
   }
   File.Move(temporary,path);return path;
  }
+ void ApplyWindowIcon(string path){
+  shellIconPath=path;
+  using(var source=new Icon(path)){var old=Icon;Icon=(Icon)source.Clone();if(old!=null)old.Dispose();}
+  var oldSmall=smallWindowIcon;var oldLarge=largeWindowIcon;
+  float scale=IsHandleCreated?GetDpiForWindow(Handle)/96f:GetDpiForSystem()/96f;
+  smallWindowIcon=new Icon(path,(int)(16*scale),(int)(16*scale));largeWindowIcon=new Icon(path,(int)(32*scale),(int)(32*scale));
+  if(IsHandleCreated)ApplyTaskbarIcon();
+  if(oldSmall!=null)oldSmall.Dispose();if(oldLarge!=null)oldLarge.Dispose();
+ }
+ void ApplyTaskbarIcon(){
+  if(String.IsNullOrEmpty(shellIconPath))return;
+  // The taskbar's grouped/pinned icon comes from its AppID metadata, whereas
+  // Alt+Tab uses the window's native icon. Keep both at the chosen palette.
+  try{WorkLogRegistrationShortcut.SetWindowIcon(Handle,Application.ExecutablePath,shellIconPath);}catch(Exception ex){Debug.WriteLine(ex);}
+  if(smallWindowIcon!=null)SendMessage(Handle,0x80,IntPtr.Zero,smallWindowIcon.Handle);
+  if(largeWindowIcon!=null)SendMessage(Handle,0x80,(IntPtr)1,largeWindowIcon.Handle);
+ }
+ void SyncShellTheme(string icon,string logo){
+  if(testing)return;
+  var links=new System.Collections.Generic.List<string>{Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),"Work Log.lnk"),Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs),"Work Log","Work Log.lnk")};
+  string pins=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),"Microsoft","Internet Explorer","Quick Launch","User Pinned","TaskBar");
+  try{if(Directory.Exists(pins))links.AddRange(Directory.GetFiles(pins,"*.lnk"));}catch(Exception ex){Debug.WriteLine(ex);}
+  bool linksChanged=false;
+  foreach(string link in links)try{linksChanged=WorkLogRegistrationShortcut.UpdateOwnedIcon(link,Application.ExecutablePath,icon)||linksChanged;}catch(Exception ex){Debug.WriteLine(ex);}
+  if(linksChanged)WorkLogRegistrationShortcut.AssociationsChanged();
+  // Do not claim another installation's registered sender or URI handler.
+  foreach(string key in new[]{@"Software\Classes\AppUserModelId\WorkLog.Desktop",@"Software\Classes\worklog"})try{
+   using(var owned=Microsoft.Win32.Registry.CurrentUser.OpenSubKey(key,true))if(owned!=null&&String.Equals(owned.GetValue("WorkLogExecutable") as string,Application.ExecutablePath,StringComparison.OrdinalIgnoreCase)){
+    if(key.EndsWith("WorkLog.Desktop"))owned.SetValue("IconUri",logo);
+    else using(var resource=owned.CreateSubKey("DefaultIcon"))resource.SetValue("","\""+icon+"\",0");
+   }
+  }catch(Exception ex){Debug.WriteLine(ex);}
+  try{using(var arp=Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Uninstall\WorkJournalPreview",true))if(arp!=null&&String.Equals(arp.GetValue("InstallLocation") as string,AppDomain.CurrentDomain.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar),StringComparison.OrdinalIgnoreCase))arp.SetValue("DisplayIcon","\""+icon+"\",0");}catch(Exception ex){Debug.WriteLine(ex);}
+ }
  void SetTheme(string color,string encoded){
   if(!System.Text.RegularExpressions.Regex.IsMatch(color,"^#[0-9a-fA-F]{6}$")||encoded.Length>150000)return;
   var bytes=Convert.FromBase64String(encoded);using(var ms=new MemoryStream(bytes))using(var picture=Image.FromStream(ms)){if(picture.Width!=256||picture.Height!=256)return;
+   accentColor=ColorTranslator.FromHtml(color);var nextLaunchImage=new Bitmap(picture);var oldLaunchImage=launchImage;launchImage=nextLaunchImage;if(oldLaunchImage!=null)oldLaunchImage.Dispose();ApplyNativeAppearance();
    Directory.CreateDirectory(AppearancePath);string file=Path.Combine(AppearancePath,"icon-"+color.Substring(1)+".ico");
    using(var writer=new BinaryWriter(File.Create(file))){writer.Write((short)0);writer.Write((short)1);writer.Write((short)1);writer.Write((byte)0);writer.Write((byte)0);writer.Write((short)0);writer.Write((short)1);writer.Write((short)32);writer.Write(bytes.Length);writer.Write(22);writer.Write(bytes);}
-   using(var icon=new Icon(file)){var old=Icon;Icon=(Icon)icon.Clone();if(old!=null)old.Dispose();}
+   string png=Path.Combine(AppearancePath,"icon-"+color.Substring(1)+".png");File.WriteAllBytes(png,bytes);
    File.WriteAllText(Path.Combine(AppearancePath,"color.txt"),color);
    string desktopIcon=DesktopThemeIcon(color,picture);
-   if(!testing){
-    string desktop=Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),shortcut=Path.Combine(desktop,"Work Log.lnk");
-    if(File.Exists(shortcut))try{var type=Type.GetTypeFromProgID("WScript.Shell");var shell=Activator.CreateInstance(type);var link=type.InvokeMember("CreateShortcut",System.Reflection.BindingFlags.InvokeMethod,null,shell,new object[]{shortcut});var lt=link.GetType();string target=(string)lt.InvokeMember("TargetPath",System.Reflection.BindingFlags.GetProperty,null,link,null);
-     string current=(string)lt.InvokeMember("IconLocation",System.Reflection.BindingFlags.GetProperty,null,link,null);
-     if(String.Equals(Path.GetFullPath(target),Application.ExecutablePath,StringComparison.OrdinalIgnoreCase)&&!String.Equals(current,desktopIcon+",0",StringComparison.OrdinalIgnoreCase)){lt.InvokeMember("IconLocation",System.Reflection.BindingFlags.SetProperty,null,link,new object[]{desktopIcon+",0"});lt.InvokeMember("Save",System.Reflection.BindingFlags.InvokeMethod,null,link,null);SHChangeNotify(0x2000,0x1005,shortcut,IntPtr.Zero);}Marshal.ReleaseComObject(link);Marshal.ReleaseComObject(shell);
-    }catch{}
-   }
+   SyncShellTheme(desktopIcon,png);ApplyWindowIcon(desktopIcon);
   }
  }
  void SetPreferences(string mode,string language){
@@ -96,14 +163,15 @@ class JournalWindow:Form {
   File.WriteAllText(Path.Combine(AppearancePath,"mode.txt"),mode);File.WriteAllText(Path.Combine(AppearancePath,"language.txt"),language);ApplyNativeAppearance();
  }
  void ApplyNativeAppearance(){
-  BackColor=loading.BackColor=darkMode?Color.FromArgb(17,24,20):Color.FromArgb(248,250,248);
+  BackColor=loading.BackColor=darkMode?Color.FromArgb(18,18,18):Color.White;
+  loading.Invalidate();
   if(web!=null)web.DefaultBackgroundColor=BackColor;
   if(IsHandleCreated)try{int value=darkMode?1:0;DwmSetWindowAttribute(Handle,20,ref value,4);}catch{}
  }
  string NativeText(string zh,string en){return english?en:zh;}
  void Mark(string phase){startup[phase]=Program.LaunchClock.ElapsedMilliseconds;}
- public JournalWindow(bool test){
-  testing=test;dataDir=Environment.GetEnvironmentVariable("WORKJOURNAL_DATA_DIR")??Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"WorkJournal","data");
+ public JournalWindow(bool test,bool openToday=false){
+  testing=test;pendingToday=openToday;dataDir=Environment.GetEnvironmentVariable("WORKJOURNAL_DATA_DIR")??Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"WorkJournal","data");
   int port; if(!Int32.TryParse(Environment.GetEnvironmentVariable("WORKJOURNAL_PORT"),out port))port=43171;
   origin="http://127.0.0.1:"+port;
   Text="Work Log";using(var stream=System.Reflection.Assembly.GetExecutingAssembly().GetManifestResourceStream("app.ico"))using(var asset=new Icon(stream)){Icon=(Icon)asset.Clone();}StartPosition=FormStartPosition.Manual;
@@ -111,15 +179,18 @@ class JournalWindow:Form {
   Size=new Size(Math.Min((int)(1280*scale),(int)(area.Width*.94)),Math.Min((int)(850*scale),(int)(area.Height*.94)));
   MinimumSize=new Size((int)(380*scale),(int)(440*scale));BackColor=Color.FromArgb(248,250,248);
   try{darkMode=File.ReadAllText(Path.Combine(AppearancePath,"mode.txt")).Trim()=="dark";english=File.ReadAllText(Path.Combine(AppearancePath,"language.txt")).Trim()=="en";}catch{}
+  try{string savedColor=File.ReadAllText(Path.Combine(AppearancePath,"color.txt")).Trim();if(System.Text.RegularExpressions.Regex.IsMatch(savedColor,"^#[0-9a-fA-F]{6}$"))accentColor=ColorTranslator.FromHtml(savedColor);}catch{}
   ApplyNativeAppearance();launchPhase=NativeText("正在打开","Opening");
   if(testing){Opacity=0;ShowInTaskbar=false;}
   Shown+=async(s,e)=>{loading.Refresh();await Task.Yield();web=new WebView2{Dock=DockStyle.Fill,DefaultBackgroundColor=BackColor};Controls.Add(web);loading.BringToFront();await Start(port);};
   launchImage=Image.FromFile(Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"app","src","assets","app-icon.png"));
-  loading.Paint+=(s,e)=>{float dpi=e.Graphics.DpiX/96f;int size=(int)(64*dpi),x=(loading.Width-size)/2,y=(loading.Height-size)/2-(int)(28*dpi);e.Graphics.InterpolationMode=System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;e.Graphics.DrawImage(launchImage,x,y,size,size);using(var font=new Font("Segoe UI",14,FontStyle.Regular))using(var brush=new SolidBrush(darkMode?Color.FromArgb(171,201,181):Color.FromArgb(70,100,83)))using(var format=new StringFormat{Alignment=StringAlignment.Center}){e.Graphics.DrawString("Work Log",font,brush,new RectangleF(0,y+size+12*dpi,loading.Width,40*dpi),format);}};
-  try{string colorFile=Path.Combine(AppearancePath,"color.txt");if(File.Exists(colorFile)){string color=File.ReadAllText(colorFile).Trim();if(System.Text.RegularExpressions.Regex.IsMatch(color,"^#[0-9a-fA-F]{6}$")){string iconFile=Path.Combine(AppearancePath,"icon-"+color.Substring(1)+".ico");if(File.Exists(iconFile))using(var stored=new Icon(iconFile)){Icon=(Icon)stored.Clone();var payload=File.ReadAllBytes(iconFile);using(var input=new MemoryStream(payload,22,payload.Length-22))using(var source=Image.FromStream(input)){var replacement=new Bitmap(source);var previous=launchImage;launchImage=replacement;previous.Dispose();}}}}}catch{}
-  loading.Paint+=(s,e)=>{if(!startup.ContainsKey("first-frame"))startup["first-frame"]=(long)(DateTime.UtcNow-Process.GetCurrentProcess().StartTime.ToUniversalTime()).TotalMilliseconds;float dpi=e.Graphics.DpiX/96f;float y=loading.Height/2f+66*dpi;using(var font=new Font("Segoe UI",10))using(var brush=new SolidBrush(darkMode?Color.FromArgb(187,202,192):Color.FromArgb(110,130,116)))using(var format=new StringFormat{Alignment=StringAlignment.Center})e.Graphics.DrawString(launchPhase,font,brush,new RectangleF(0,y,loading.Width,30*dpi),format);float width=150*dpi,x=(loading.Width-width)/2;using(var track=new SolidBrush(darkMode?Color.FromArgb(44,62,49):Color.FromArgb(224,232,224)))using(var ink=new SolidBrush(darkMode?Color.FromArgb(171,201,181):Color.FromArgb(70,100,83))){e.Graphics.FillRectangle(track,x,y+34*dpi,width,3*dpi);float step=(float)((1-Math.Cos(Program.LaunchClock.Elapsed.TotalSeconds*Math.PI/1.2))/2);e.Graphics.FillRectangle(ink,x+step*(width-35*dpi),y+34*dpi,35*dpi,3*dpi);}};
+  loading.Paint+=(s,e)=>{float dpi=e.Graphics.DpiX/96f;int size=(int)(64*dpi),x=(loading.Width-size)/2,y=(loading.Height-size)/2-(int)(28*dpi);e.Graphics.InterpolationMode=System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;e.Graphics.DrawImage(launchImage,x,y,size,size);using(var font=new Font("Segoe UI",14,FontStyle.Regular))using(var brush=new SolidBrush(LaunchInk))using(var format=new StringFormat{Alignment=StringAlignment.Center}){e.Graphics.DrawString("Work Log",font,brush,new RectangleF(0,y+size+12*dpi,loading.Width,40*dpi),format);}};
+  shellIconPath=Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"WorkJournal.ico");
+  try{string colorFile=Path.Combine(AppearancePath,"color.txt");if(File.Exists(colorFile)){string color=File.ReadAllText(colorFile).Trim();if(System.Text.RegularExpressions.Regex.IsMatch(color,"^#[0-9a-fA-F]{6}$")){string iconFile=Path.Combine(AppearancePath,"icon-"+color.Substring(1)+".ico");if(File.Exists(iconFile)){var payload=File.ReadAllBytes(iconFile);using(var input=new MemoryStream(payload,22,payload.Length-22))using(var source=Image.FromStream(input)){var replacement=new Bitmap(source);var previous=launchImage;launchImage=replacement;previous.Dispose();string png=Path.Combine(AppearancePath,"icon-"+color.Substring(1)+".png");if(!File.Exists(png))source.Save(png,System.Drawing.Imaging.ImageFormat.Png);shellIconPath=DesktopThemeIcon(color,source);SyncShellTheme(shellIconPath,png);}}}}}catch(Exception ex){Debug.WriteLine(ex);}
+  if(File.Exists(shellIconPath))ApplyWindowIcon(shellIconPath);
+  loading.Paint+=(s,e)=>{if(!startup.ContainsKey("first-frame"))startup["first-frame"]=(long)(DateTime.UtcNow-Process.GetCurrentProcess().StartTime.ToUniversalTime()).TotalMilliseconds;float dpi=e.Graphics.DpiX/96f;float y=loading.Height/2f+66*dpi;using(var font=new Font("Segoe UI",10))using(var brush=new SolidBrush(LaunchMuted))using(var format=new StringFormat{Alignment=StringAlignment.Center})e.Graphics.DrawString(launchPhase,font,brush,new RectangleF(0,y,loading.Width,30*dpi),format);float width=150*dpi,x=(loading.Width-width)/2;using(var track=new SolidBrush(LaunchTrack))using(var ink=new SolidBrush(LaunchAccent)){e.Graphics.FillRectangle(track,x,y+34*dpi,width,3*dpi);float step=(float)((1-Math.Cos(Program.LaunchClock.Elapsed.TotalSeconds*Math.PI/1.2))/2);e.Graphics.FillRectangle(ink,x+step*(width-35*dpi),y+34*dpi,35*dpi,3*dpi);}};
   launchTimer.Tick+=(s,e)=>{float dpi=GetDpiForWindow(Handle)/96f;loading.Invalidate(new Rectangle(0,(int)(loading.Height/2f+64*dpi),loading.Width,(int)(76*dpi)));};launchTimer.Start();loading.Resize+=(s,e)=>loading.Invalidate();Controls.Add(loading);loading.BringToFront();
-  FormClosed+=(s,e)=>{closing=true;if(reminderIcon!=null)reminderIcon.Dispose();launchTimer.Dispose();if(web!=null)web.Dispose();launchImage.Dispose();if(server!=null){try{if(!server.HasExited)server.Kill();}catch{}server.Dispose();}};
+  FormClosed+=(s,e)=>{closing=true;launchTimer.Dispose();if(web!=null)web.Dispose();launchImage.Dispose();if(smallWindowIcon!=null)smallWindowIcon.Dispose();if(largeWindowIcon!=null)largeWindowIcon.Dispose();if(server!=null){try{if(!server.HasExited)server.Kill();}catch{}server.Dispose();}};
  }
  void CenterOnActiveScreen(bool initial){
   var area=Screen.FromPoint(Cursor.Position).WorkingArea;MaximizedBounds=area;
@@ -128,8 +199,22 @@ class JournalWindow:Form {
   Location=new Point(area.Left+(area.Width-Width)/2,area.Top+(area.Height-Height)/2);
  }
  protected override void OnLoad(EventArgs e){base.OnLoad(e);CenterOnActiveScreen(true);}
- protected override void OnHandleCreated(EventArgs e){base.OnHandleCreated(e);try{int caption=0xF8FAF8,text=0x353A30,corner=2;DwmSetWindowAttribute(Handle,35,ref caption,4);DwmSetWindowAttribute(Handle,36,ref text,4);DwmSetWindowAttribute(Handle,33,ref corner,4);}catch{}}
- protected override void WndProc(ref Message m){if(m.Msg==0x804D){if(WindowState==FormWindowState.Minimized)WindowState=FormWindowState.Normal;if(WindowState==FormWindowState.Normal)CenterOnActiveScreen(false);Activate();m.Result=IntPtr.Zero;return;}if(m.Msg==0x02E0){var r=(WindowRect)Marshal.PtrToStructure(m.LParam,typeof(WindowRect));float scale=(m.WParam.ToInt64()&0xffff)/96f;MinimumSize=new Size((int)(380*scale),(int)(440*scale));Bounds=Rectangle.FromLTRB(r.Left,r.Top,r.Right,r.Bottom);m.Result=IntPtr.Zero;return;}
+ protected override void OnFormClosing(FormClosingEventArgs e){
+  base.OnFormClosing(e);
+  // Once a save has handed us its queue, let that queue reach Windows even
+  // when the user closes immediately. Hide the UI while the final write runs.
+  if(!e.Cancel&&e.CloseReason==CloseReason.UserClosing&&pendingReminderSyncs>0){
+   e.Cancel=true;closeAfterReminders=true;Hide();
+  }
+ }
+ protected override void OnHandleCreated(EventArgs e){base.OnHandleCreated(e);ApplyTaskbarIcon();try{int caption=ColorTranslator.ToWin32(BackColor),text=ColorTranslator.ToWin32(LaunchInk),corner=2;DwmSetWindowAttribute(Handle,35,ref caption,4);DwmSetWindowAttribute(Handle,36,ref text,4);DwmSetWindowAttribute(Handle,33,ref corner,4);}catch{}}
+ void OpenPendingToday(){
+  if(!pendingToday||!appReady||closing||web==null||web.CoreWebView2==null)return;
+  pendingToday=false;
+  // Use the app's own navigation; a reminder click must not reload a draft.
+  web.CoreWebView2.ExecuteScriptAsync("document.querySelector('nav [data-page=today]')?.click()");
+ }
+ protected override void WndProc(ref Message m){if(m.Msg==Program.ActivateMessage){if(m.WParam==(IntPtr)1)pendingToday=true;if(WindowState==FormWindowState.Minimized)WindowState=FormWindowState.Normal;if(WindowState==FormWindowState.Normal)CenterOnActiveScreen(false);Activate();OpenPendingToday();m.Result=IntPtr.Zero;return;}if(m.Msg==0x02E0){var r=(WindowRect)Marshal.PtrToStructure(m.LParam,typeof(WindowRect));float scale=(m.WParam.ToInt64()&0xffff)/96f;MinimumSize=new Size((int)(380*scale),(int)(440*scale));Bounds=Rectangle.FromLTRB(r.Left,r.Top,r.Right,r.Bottom);m.Result=IntPtr.Zero;return;}
   if(m.Msg==0x84&&WindowState==FormWindowState.Normal){long pos=m.LParam.ToInt64();var p=PointToClient(new Point((short)(pos&0xffff),(short)((pos>>16)&0xffff)));int edge=6;bool left=p.X<edge,right=p.X>ClientSize.Width-edge,top=p.Y<edge,bottom=p.Y>ClientSize.Height-edge;int hit=top?(left?13:right?14:12):bottom?(left?16:right?17:15):left?10:right?11:0;if(hit!=0){m.Result=(IntPtr)hit;return;}}
   base.WndProc(ref m);}
  async Task<string> ReadStatus(int timeout){
@@ -181,13 +266,14 @@ class JournalWindow:Form {
     if(!Local(e.Source))return;
     try{var message=json.Deserialize<System.Collections.Generic.Dictionary<string,object>>(e.WebMessageAsJson);
      if(message.ContainsKey("type")&&(string)message["type"]=="export-report")await ExportPdf((string)message["html"],(string)message["title"]);
-     if(message.ContainsKey("type")&&(string)message["type"]=="app-ready"){loading.Hide();launchTimer.Stop();web.Visible=true;web.BringToFront();web.Focus();Mark("interactive");}
+     if(message.ContainsKey("type")&&(string)message["type"]=="app-ready"){loading.Hide();launchTimer.Stop();web.Visible=true;web.BringToFront();if(!testing)web.Focus();appReady=true;OpenPendingToday();Mark("interactive");}
      if(message.ContainsKey("type")&&(string)message["type"]=="set-preferences")SetPreferences((string)message["mode"],(string)message["language"]);
      if(message.ContainsKey("type")&&(string)message["type"]=="plan-reminder"){
-      string text=(string)message["message"];if(text.Length>1000)text=text.Substring(0,1000);
+      string text=(string)message["message"];
       if(testing)File.WriteAllText(Path.Combine(dataDir,"reminder-test.txt"),text);
-      else {if(reminderIcon==null){reminderIcon=new NotifyIcon{Icon=Icon,Text="Work Log",Visible=true};reminderIcon.BalloonTipClicked+=(a,b)=>{WindowState=FormWindowState.Normal;Activate();};}reminderIcon.ShowBalloonTip(5000,"Work Log",text,ToolTipIcon.Info);}
+      else WindowsNotifications.Show(NativeText("计划提醒","Plan reminder"),text,null);
      }
+     if(message.ContainsKey("type")&&(string)message["type"]=="sync-reminders")await SyncReminders(message);
      if(message.ContainsKey("type")&&(string)message["type"]=="set-theme")SetTheme((string)message["color"],(string)message["png"]);
      if(message.ContainsKey("type")&&(string)message["type"]=="window"){
       string action=(string)message["action"];if(action=="close")Close();if(action=="minimize")WindowState=FormWindowState.Minimized;
@@ -196,7 +282,7 @@ class JournalWindow:Form {
      }
     }catch(Exception ex){ReportResult(false,ex.Message);}
    };
-   await web.CoreWebView2.AddScriptToExecuteOnDocumentCreatedAsync("window.workJournalDesktop=true;window.workJournalPlatform='windows';");
+   await web.CoreWebView2.AddScriptToExecuteOnDocumentCreatedAsync("window.workJournalDesktop=true;window.workJournalPlatform='windows';window.workJournalScheduledReminders=true;");
    web.CoreWebView2.Navigate(origin);
    if(testing)await Smoke();
   }catch(WebView2RuntimeNotFoundException){
@@ -209,6 +295,20 @@ class JournalWindow:Form {
   }
  }
  bool Local(string url){Uri parsed;return Uri.TryCreate(url,UriKind.Absolute,out parsed)&&parsed.GetLeftPart(UriPartial.Authority)==origin;}
+ async Task SyncReminders(System.Collections.Generic.Dictionary<string,object> message){
+  bool success=false;string error="";object requestId;message.TryGetValue("requestId",out requestId);
+  bool useEnglish=english;pendingReminderSyncs++;
+  await reminderSync.WaitAsync();
+  try{
+   var items=message["items"];
+   if(testing){WindowsNotifications.Validate(items,useEnglish);File.WriteAllText(Path.Combine(dataDir,"scheduled-reminders-test.json"),json.Serialize(items));}
+   else await Task.Run(()=>WindowsNotifications.Sync(items,useEnglish));
+   success=true;
+  }catch(Exception ex){error=ex.Message;}
+  finally{reminderSync.Release();pendingReminderSyncs--;}
+  if(!closing&&web.CoreWebView2!=null)web.CoreWebView2.PostWebMessageAsJson(json.Serialize(new{type="sync-reminders-result",requestId=requestId,success=success,message=error}));
+  if(closeAfterReminders&&pendingReminderSyncs==0&&!closing)BeginInvoke((Action)Close);
+ }
  void ChooseDownload(CoreWebView2DownloadStartingEventArgs e){
   if(testing){e.ResultFilePath=Path.Combine(dataDir,Path.GetFileName(e.ResultFilePath));e.Handled=true;return;}
   using(var dialog=new SaveFileDialog{FileName=Path.GetFileName(e.ResultFilePath),OverwritePrompt=true}){
@@ -233,7 +333,7 @@ class JournalWindow:Form {
    string file;
    if(testing)file=Path.Combine(dataDir,"report.pdf");
    else using(var dialog=new SaveFileDialog{Filter=NativeText("PDF 文档 (*.pdf)|*.pdf","PDF document (*.pdf)|*.pdf"),FileName=SafeName(title)+".pdf",OverwritePrompt=true}){if(dialog.ShowDialog(this)!=DialogResult.OK){ReportResult(false,NativeText("已取消导出","Export canceled"));return;}file=dialog.FileName;}
-   printWindow=new Form{ShowInTaskbar=false,Opacity=0,Size=new Size(900,1000)};printer=new WebView2{Dock=DockStyle.Fill};printWindow.Controls.Add(printer);printWindow.Show(this);
+   printWindow=new BackgroundWindow{Size=new Size(900,1000)};printer=new WebView2{Dock=DockStyle.Fill};printWindow.Controls.Add(printer);printWindow.Show(this);
    await printer.EnsureCoreWebView2Async(environment);printer.CoreWebView2.Settings.IsScriptEnabled=false;
    var loaded=new TaskCompletionSource<bool>();printer.CoreWebView2.NavigationCompleted+=(s,e)=>loaded.TrySetResult(e.IsSuccess);
    printer.CoreWebView2.NavigateToString(html);
@@ -242,7 +342,7 @@ class JournalWindow:Form {
    settings.PageWidth=210.0/25.4;settings.PageHeight=297.0/25.4;settings.MarginTop=0;settings.MarginBottom=0;settings.MarginLeft=0;settings.MarginRight=0;
    if(!await printer.CoreWebView2.PrintToPdfAsync(file,settings))throw new Exception(NativeText("PDF 导出未完成，请重试。","PDF export did not finish. Please try again."));
    ReportResult(true,NativeText("PDF 已保存","PDF saved"));
-  }finally{if(printer!=null)printer.Dispose();if(printWindow!=null)printWindow.Close();exporting=false;}
+  }finally{try{if(printer!=null)printer.Dispose();}finally{try{if(printWindow!=null)printWindow.Dispose();}finally{exporting=false;}}}
  }
  static string SafeName(string value){foreach(char x in Path.GetInvalidFileNameChars())value=value.Replace(x,'_');return value.Length>80?value.Substring(0,80):value;}
  async Task WaitScript(string expression){for(int i=0;i<240;i++){if(await web.CoreWebView2.ExecuteScriptAsync(expression)=="true")return;await Task.Delay(100);}throw new Exception("Desktop test timed out: "+expression);}

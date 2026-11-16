@@ -1,5 +1,6 @@
 // Action labels stay literal. Prompts and empty states can sound more relaxed.
 export const zh={
+ '今日统计：待办':'待办',
  '输入做过的事，包括过程和结果。':'刚忙完什么？趁还记得，把过程和结果写下来。',
  '输入要做的事和补充说明。':'接下来要做什么？写具体点，免得回头还得猜。',
  '搜索记录、原文、待办':'那件事记在哪儿了？搜一下',

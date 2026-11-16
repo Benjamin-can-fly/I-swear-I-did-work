@@ -4,7 +4,9 @@ import {tr,locale} from '../lib/i18n.js';
 import {esc,icon,notify} from '../lib/ui.js';
 import {localDate,addDays,parseDate,validDate} from '../lib/dates.js';
 import {localMinute} from '../lib/task-time.js';
+import {timeLabel} from '../lib/entry-time.js';
 import {taskContent,taskFields} from '../lib/task-content.js';
+import {hasReminderTime,hasScheduledReminders} from '../lib/plan-reminders.js';
 import {attachmentList,uploadFile} from '../lib/attachments.js';
 import {resizeTextareas} from '../lib/autosize.js';
 import {refreshMotion,jellyRelease,waitForJelly,scatterIcon} from '../lib/motion.js';
@@ -21,15 +23,29 @@ export class InlineEditor{
   // Keep everyday entry to one text area and one action row. Existing controls
   // move intact into the options panel, so their values and handlers survive.
   const options=this.form.querySelector('.composer-fields'),footer=this.form.querySelector('.composer-footer');
-  const meta=this.form.querySelector('.composer-meta');
-  if(record)options.prepend(meta);else this.form.insertBefore(meta,options);
-  const sync=this.form.querySelector('.sync-option');if(sync)options.prepend(sync);
+  const meta=this.form.querySelector('.composer-meta'), sync=this.form.querySelector('.sync-option');
+  const group=(label,...nodes)=>{const section=document.createElement('section');section.className='composer-group';const heading=document.createElement('strong');heading.className='group-label';heading.textContent=tr(label);section.append(heading,...nodes.filter(Boolean));options.append(section);return section;};
+  const grids=[...options.querySelectorAll(':scope > .form-grid')],title=options.querySelector('[name=title]')?.closest('label');
   if(!record){
    const plans=document.createElement('section');plans.className='composer-plan-settings';
-   for(const selector of ['.repeat-option','.plan-count','.plan-times','.plan-time-summary','.plan-options'])plans.append(this.form.querySelector(selector));
-   options.append(plans);
+   for(const selector of ['.repeat-option','.plan-count','.weekday-option','.plan-times','.plan-time-summary','.plan-options'])plans.append(this.form.querySelector(selector));
+   const link=this.form.elements.recordId.closest('label');
+   group('计划安排',plans).classList.add('existing-plan-options');
+   const execution=group('执行时间',grids[1],grids[2]);execution.classList.add('task-execution-options');
+   execution.insertAdjacentHTML('beforeend',`<label class="form-field task-dependency-options" hidden>${tr('完成哪一项后开始')}<select name="afterTaskId"><option value="">${tr('不等待其他任务')}</option></select></label>`);
+   const deadlineGroup=group('截止日期',meta);deadlineGroup.classList.add('deadline-options');
+   if(hasScheduledReminders(window)){
+    deadlineGroup.insertAdjacentHTML('beforeend',`<label class="important-field" hidden><input type="checkbox" name="oneOffRemind">${tr('Windows 系统提醒')}</label>`);
+    this.oneOffRemind=this.form.elements.oneOffRemind;
+   }
+   group('归档',grids[0],link,sync);
+  }else{
+   group('发生时间',meta).classList.add('record-time-options');
+   group('归档',title,grids[0],grids[1]);
   }
+  options.id=kind+'-capture-options';this.form.querySelector('.expand-fields').setAttribute('aria-controls',options.id);
   footer.prepend(this.form.querySelector('.composer-tools'));
+  footer.after(options);
   const context=document.createElement('span');context.className='composer-context';this.form.querySelector('.composer-title').after(context);
   this.form.querySelector('textarea').placeholder=record?tr('刚做了什么？'):tr('有什么要做的？');
   if(!record)this.deadlineControls=new DeadlineControls(this);
@@ -42,10 +58,10 @@ export class InlineEditor{
   weekday.onchange=()=>{if(weekday.value==='')return;const base=dateInput.value||localDate(),day=(parseDate(base).getDay()+6)%7;dateInput.value=addDays(base,Number(weekday.value)-day);if(this.deadlineControls)this.deadlineControls.fill({due:dateInput.value,dueTime:this.form.elements.dueTime.value,deadlineHour:this.form.elements.deadlineHour.value,deadlineMinute:this.form.elements.deadlineMinute.value});this.timingEdited=true;this.syncWeekday();this.draft();};
   try{const stored=JSON.parse(localStorage.getItem(this.key));if(stored){this.fill({...stored.values,...(!record&&stored.item&&stored.values.autoSyncRecord===undefined?{autoSyncRecord:stored.item.autoSyncRecord!==false}:{})});this.newDraft=stored.newDraft;this.clearedTiming=stored.clearedTiming===true;this.timingApplied=stored.timingApplied??(stored.item?Boolean(record||stored.values.due):true);this.timingEdited=stored.timingEdited??Boolean(stored.item||stored.values[record?'date':'due']);if(!stored.item)this.ensureNewDate();this.attachments=stored.attachments||[];this.item=stored.item||null;this.startedManually=stored.startedManually??Boolean(stored.item);this.paint();this.state(tr('已恢复草稿'));}else{const old=JSON.parse(localStorage.getItem(record?'liubai-draft-v1':'journal-task-draft-v1'));if(old)this.fill(record?{content:old.raw,date:old.date}:{content:old.content,due:old.due});}}catch{}
   this.ensureNewDate();this.syncTiming();if(this.item?.startDate)this.expand(true);
-  this.form.addEventListener('input',e=>{if(e.target.name==='startedAt')this.startedManually=true;if(['date','due','time','dueTime'].includes(e.target.name))this.timingEdited=true;this.draft();});this.form.addEventListener('change',e=>{this.syncRepeat();if(e.target.name==='startedAt')this.startedManually=true;this.syncStatus();this.draft();});
+  this.form.addEventListener('input',e=>{if(e.target.name==='afterTaskId')this.dependencyValue=e.target.value;if(e.target.name==='startedAt')this.startedManually=true;if(['date','due','time','dueTime'].includes(e.target.name))this.timingEdited=true;if(!e.target.closest('.capture-preview'))this.draft();});this.form.addEventListener('change',e=>{if(e.target.closest('.capture-preview'))return;if(e.target.name==='afterTaskId')this.dependencyValue=e.target.value;this.syncRepeat();if(e.target.name==='startedAt')this.startedManually=true;this.syncStatus();this.quickCapture?.sync();this.draft();});
   this.form.querySelector('.expand-fields').onclick=()=>this.expand();this.form.querySelector('.cancel-edit').onclick=()=>{if(this.uploading||this.saving)return notify(tr('请等待当前保存或上传完成'));this.reset();this.restoreNewDraft();};
   this.form.querySelector('[type=file]').onchange=e=>this.upload(e.target.files);
-  this.form.querySelector('.apply-time').onclick=()=>{this.timingApplied=!this.timingApplied;this.ensureNewDate();this.syncTiming();this.draft();};
+  this.form.querySelector('.apply-time').onclick=()=>{this.timingApplied=!this.timingApplied;this.timingEdited=true;this.ensureNewDate();this.syncTiming();this.quickCapture?.sync();this.draft();};
   let dragDepth=0;
   const isFiles=e=>Array.from(e.dataTransfer?.types||[]).includes('Files');
   this.form.addEventListener('dragenter',e=>{if(isFiles(e)){e.preventDefault();dragDepth++;this.form.classList.add('file-drag-over');}});
@@ -68,12 +84,12 @@ export class InlineEditor{
   };
   this.form.onsubmit=e=>{e.preventDefault();void this.submit();};this.paint();
  }
- ensureNewDate(){if(this.kind==='task'){this.syncWeekday();return;}if(this.clearedTiming&&!this.timingApplied){this.syncWeekday();return;}const date=this.form.elements[this.kind==='record'?'date':'due'],time=this.form.elements[this.kind==='record'?'time':'dueTime'];if(!date.value)date.value=localDate();if(!time.value)time.value=localMinute(new Date()).slice(11);this.syncWeekday();}
+ ensureNewDate(){if(this.kind==='task'){this.syncWeekday();return;}if(this.clearedTiming&&!this.timingApplied){this.syncWeekday();return;}const date=this.form.elements[this.kind==='record'?'date':'due'],time=this.form.elements[this.kind==='record'?'time':'dueTime'];if(!date.value)date.value=localDate();if(!time.value&&!this.item?.timePeriod)time.value=localMinute(new Date()).slice(11);this.syncWeekday();}
  capture(){return structuredClone({values:{...this.values(),important:this.form.elements.important?.checked,autoSyncRecord:this.form.elements.autoSyncRecord?.checked},item:this.item,attachments:this.attachments,startedManually:this.startedManually,timingApplied:this.timingApplied,timingEdited:this.timingEdited,newDraft:this.newDraft,clearedTiming:this.clearedTiming});}
  clearInput(){
   if(this.uploading||this.saving)return notify(tr('请等待当前保存或上传完成'));
   const previous=this.capture(),record=this.kind==='record',now=localMinute(new Date());
-  this.newDraft=null;this.reset();this.timingApplied=previous.timingApplied;this.timingEdited=record;this.clearedTiming=!record&&!this.timingApplied;
+  this.newDraft=null;this.reset();this.timingApplied=previous.timingApplied;this.timingEdited=record&&previous.timingEdited;this.clearedTiming=!record&&!this.timingApplied;
   this.fill(record?{date:previous.values.date,time:previous.values.time}:{due:'',dueTime:'',autoSyncRecord:previous.values.autoSyncRecord});
   this.syncWeekday();this.paint();this.draft();resizeTextareas(this.root);
   const cleared=JSON.stringify(this.capture());
@@ -88,38 +104,68 @@ export class InlineEditor{
   this.item=null;this.ensureNewDate();this.paint();this.draft();this.state(tr('原条目已删除，内容已保留为新草稿'));
  }
  syncTiming(){this.form.querySelector('.apply-time').setAttribute('aria-pressed',String(this.timingApplied));this.form.querySelector('.time-application-note').textContent=this.timingApplied?'':this.kind==='record'?tr('按保存时间记录'):tr('不设截止时间');this.syncRepeat();this.deadlineControls?.sync();this.context();}
- context(){const el=this.form.querySelector('.composer-context');if(!el)return;const f=this.planControls?.frequency();if(f&&f!=='none'){el.textContent=tr`${{daily:tr('每天'),weekly:tr('每周'),monthly:tr('每月')}[f]} · ${this.form.elements.targetCount.value||1} 次`;return;}const record=this.kind==='record',date=this.form.elements[record?'date':'due'].value,time=this.form.elements[record?'time':'dueTime'].value;if(!record){el.textContent='';return;}el.textContent=!this.timingApplied?(record?tr('按保存时间记录'):tr('不设截止时间')):(record?'':tr('截止 '))+(date===localDate()?tr('今天'):date)+' '+time;}
- syncRepeat(){this.planControls?.sync();this.deadlineControls?.sync();}
- values(){const values=Object.fromEntries(new FormData(this.form));if(this.kind==='task')Object.assign(values,{repeatFrequency:this.form.elements.repeatFrequency.value,targetCount:this.form.elements.targetCount.value},this.planControls.values(),this.deadlineControls?.values());return values;}
- fill(values={}){if(this.kind==='task'&&values.repeatDaily!==undefined&&!values.repeatFrequency)values={...values,repeatFrequency:values.repeatDaily?'daily':'none'};for(const [name,value]of Object.entries(values)){const el=this.form.elements.namedItem(name);if(el&&el.type!=='file')el.type==='checkbox'?el.checked=Boolean(value):el.value=value??'';}this.deadlineControls?.fill(values);if(this.planControls&&('scheduling' in values||'slots' in values))this.planControls.fill(values);this.syncStatus();this.syncWeekday();this.syncRepeat();resizeTextareas(this.root);}
+ context(){const el=this.form.querySelector('.composer-context');if(!el)return;const f=this.planControls?.frequency();if(f&&f!=='none'){el.textContent=tr`${{daily:tr('每天'),weekly:tr('每周'),monthly:tr('每月')}[f]} · ${this.form.elements.targetCount.value||1} 次`;return;}const record=this.kind==='record',date=this.form.elements[record?'date':'due'].value,time=this.form.elements[record?'time':'dueTime'].value;if(!record){el.textContent='';return;}el.textContent=!this.timingApplied?(record?tr('按保存时间记录'):tr('不设截止时间')):(record?'':tr('截止 '))+(date===localDate()?tr('今天'):date)+' '+(time||timeLabel('',this.item?.timePeriod));}
+ syncOneOffRemind(){
+  const c=this.oneOffRemind;if(!c)return;
+  const ordinary=this.item&&!this.item.startDate&&!this.item.routineId&&this.planControls.frequency()==='none';
+  const exact=ordinary&&(this.timingApplied&&hasReminderTime(this.form.elements.due.value,this.form.elements.dueTime.value)||hasReminderTime(this.item.scheduledDate,this.item.scheduledTime));
+  c.parentElement.hidden=!exact;c.disabled=!exact;if(ordinary&&!exact)c.checked=false;
+ }
+ syncRepeat(){this.planControls?.sync();this.deadlineControls?.sync();this.syncOneOffRemind();this.syncDependencies();}
+ dependencies(tasks){this.dependencyTasks=tasks;this.syncDependencies();}
+ syncDependencies(){
+  const el=this.form.elements.afterTaskId;if(!el)return;
+  const value=this.dependencyValue??el.value??'',tasks=(this.dependencyTasks||[]).filter(t=>t.id!==this.item?.id&&!t.routineId&&!t.startDate&&!t.repeatDaily&&!['daily','weekly','monthly'].includes(t.repeatFrequency));
+  const markup=`<option value="">${tr('不等待其他任务')}</option>`+tasks.map(t=>`<option value="${esc(t.id)}">${esc(t.title)}</option>`).join('')+(value&&!tasks.some(t=>t.id===value)?`<option value="${esc(value)}">${tr('前一步已删除，修改关联')}</option>`:'');
+  if(el.innerHTML!==markup)el.innerHTML=markup;el.value=value;
+  const ordinary=Boolean(this.item&&!this.item.startDate&&!this.item.routineId&&this.planControls.frequency()==='none');
+  el.closest('.task-dependency-options').hidden=!ordinary;el.disabled=!ordinary;
+ }
+ values(){const values=Object.fromEntries(new FormData(this.form));if(this.kind==='task')Object.assign(values,{repeatFrequency:this.form.elements.repeatFrequency.value,targetCount:this.form.elements.targetCount.value},this.planControls.values(),this.deadlineControls?.values());if(this.oneOffRemind)values.oneOffRemind=this.oneOffRemind.checked;return values;}
+ fill(values={}){if('afterTaskId' in values){this.dependencyValue=values.afterTaskId||'';this.syncDependencies();}if(this.kind==='task'&&values.repeatDaily!==undefined&&!values.repeatFrequency)values={...values,repeatFrequency:values.repeatDaily?'daily':'none'};if(this.oneOffRemind&&'remind' in values&&!('oneOffRemind' in values))values={...values,oneOffRemind:values.remind===true};for(const [name,value]of Object.entries(values)){const el=this.form.elements.namedItem(name);if(el&&el.type!=='file')el.type==='checkbox'?el.checked=Boolean(value):el.value=value??'';}this.deadlineControls?.fill(values);if(this.planControls&&('scheduling' in values||'slots' in values))this.planControls.fill(values);this.syncStatus();this.syncWeekday();this.syncRepeat();resizeTextareas(this.root);}
  syncWeekday(){const value=this.form.elements[this.kind==='record'?'date':'due'].value;this.form.querySelector('.inline-weekday').value=value?String((parseDate(value).getDay()+6)%7):'';}
  syncStatus(){if(this.kind==='task')this.form.elements.completedAt.disabled=this.form.elements.status.value!=='done';}
  state(message){this.form.querySelector('.draft-state').textContent=message;}
- paint(){this.form.querySelector('.editor-attachments').innerHTML=attachmentList(this.attachments,true);this.form.querySelector('.composer-title').textContent=(this.item?tr('编辑'):tr('新增'))+(this.kind==='record'?tr('记录'):tr('待办'));this.form.querySelector('.cancel-edit').hidden=!this.item;this.syncStatus();this.syncTiming();refreshMotion();}
+ paint(){this.form.querySelector('.editor-attachments').innerHTML=attachmentList(this.attachments,true);this.form.querySelector('.composer-title').textContent=(this.item?tr('编辑'):tr('新增'))+(this.kind==='record'?tr('记录'):tr('待办'));this.form.querySelector('.cancel-edit').hidden=!this.item;this.syncStatus();this.syncTiming();this.quickCapture?.sync();refreshMotion();}
  expand(force){const fields=this.form.querySelector('.composer-fields'),open=force??fields.hidden;fields.hidden=!open;this.form.querySelector('.expand-fields').setAttribute('aria-expanded',String(open));this.form.querySelector('.expand-label').textContent=open?tr('收起选项'):tr('选项');resizeTextareas(this.root);}
- draft(){this.context();try{const values=this.values();delete values[''];values.important=this.form.elements.important?.checked;values.autoSyncRecord=this.form.elements.autoSyncRecord?.checked;localStorage.setItem(this.key,JSON.stringify({values,attachments:this.attachments,item:this.item,startedManually:this.startedManually,timingApplied:this.timingApplied,timingEdited:this.timingEdited,clearedTiming:this.clearedTiming,newDraft:this.newDraft}));this.state(tr('草稿已保存'));}catch{this.state(tr('草稿保存失败，请先保存记录'));}}
- reset(clear=true){this.clearedTiming=false;this.timingApplied=this.kind==='record';this.timingEdited=false;this.startedManually=false;this.item=null;this.attachments=[];this.form.reset();this.fill(this.kind==='record'?{date:localDate(),time:localMinute(new Date()).slice(11)}:{due:'',dueTime:'',startedAt:localMinute(new Date()),status:'next',startDate:localDate(),endDate:'',repeatFrequency:'none',scheduling:'count',slots:[],targetCount:1,leadMinutes:30,remind:false,applyCurrent:false});this.expand(false);this.state('');if(clear)try{localStorage.removeItem(this.key);}catch{}this.paint();}
+ draft(){this.context();this.syncOneOffRemind();try{const values=this.values();delete values[''];values.important=this.form.elements.important?.checked;values.autoSyncRecord=this.form.elements.autoSyncRecord?.checked;localStorage.setItem(this.key,JSON.stringify({values,attachments:this.attachments,item:this.item,startedManually:this.startedManually,timingApplied:this.timingApplied,timingEdited:this.timingEdited,clearedTiming:this.clearedTiming,newDraft:this.newDraft}));this.state(tr('草稿已保存'));}catch{this.state(tr('草稿保存失败，请先保存记录'));}}
+ reset(clear=true){this.clearedTiming=false;this.timingApplied=this.kind==='record';this.timingEdited=false;this.startedManually=false;this.item=null;this.attachments=[];this.dependencyValue='';this.form.reset();this.fill(this.kind==='record'?{date:localDate(),time:localMinute(new Date()).slice(11)}:{due:'',dueTime:'',startedAt:localMinute(new Date()),status:'next',startDate:localDate(),endDate:'',repeatFrequency:'none',scheduling:'count',slots:[],targetCount:1,leadMinutes:30,remind:false,applyCurrent:false});this.expand(false);this.state('');if(clear)try{localStorage.removeItem(this.key);}catch{}this.paint();}
  restoreNewDraft(){if(this.newDraft){this.fill(this.newDraft.values);this.attachments=this.newDraft.attachments;this.startedManually=this.newDraft.startedManually;this.timingApplied=this.newDraft.timingApplied;this.timingEdited=this.newDraft.timingEdited;this.clearedTiming=this.newDraft.clearedTiming;this.newDraft=null;this.paint();this.draft();}}
- edit(item){if(this.uploading||this.saving)return notify(tr('请等待当前保存或上传完成'));if(!this.item)this.newDraft={clearedTiming:this.clearedTiming,values:this.values(),attachments:structuredClone(this.attachments),startedManually:this.startedManually,timingApplied:this.timingApplied,timingEdited:this.timingEdited};this.clearedTiming=false;this.startedManually=true;this.timingApplied=this.kind==='record'||Boolean(item.due);this.timingEdited=true;this.item=structuredClone(item);this.attachments=structuredClone(item.attachments||[]);this.form.reset();this.fill(this.kind==='record'?{...item,content:item.details||item.raw}:{...item,scheduling:item.scheduling||'count',slots:item.slots||[],targetCount:item.targetCount||1,leadMinutes:item.leadMinutes??30,remind:item.remind??false,applyCurrent:false,autoSyncRecord:item.autoSyncRecord!==false,repeatFrequency:item.startDate?(item.repeatFrequency||(item.repeatDaily?'daily':'none')):'none',content:taskContent(item),startedAt:localMinute(item.startedAt),completedAt:localMinute(item.completedAt)});this.ensureNewDate();this.paint();this.expand(true);this.draft();this.form.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth',block:'start'});this.form.querySelector('textarea').focus({preventScroll:true});}
+ edit(item){if(this.uploading||this.saving)return notify(tr('请等待当前保存或上传完成'));if(!this.item)this.newDraft={clearedTiming:this.clearedTiming,values:this.values(),attachments:structuredClone(this.attachments),startedManually:this.startedManually,timingApplied:this.timingApplied,timingEdited:this.timingEdited};this.clearedTiming=false;this.startedManually=true;this.timingApplied=this.kind==='record'||Boolean(item.due);this.timingEdited=true;this.item=structuredClone(item);this.dependencyValue=item.afterTaskId||'';this.attachments=structuredClone(item.attachments||[]);this.form.reset();this.fill(this.kind==='record'?{...item,content:item.details||item.raw}:{...item,scheduling:item.scheduling||'count',slots:item.slots||[],targetCount:item.targetCount||1,leadMinutes:item.leadMinutes??30,remind:item.remind??false,applyCurrent:false,autoSyncRecord:item.autoSyncRecord!==false,repeatFrequency:item.startDate?(item.repeatFrequency||(item.repeatDaily?'daily':'none')):'none',content:taskContent(item),startedAt:localMinute(item.startedAt),completedAt:localMinute(item.completedAt)});this.ensureNewDate();this.paint();this.expand(true);this.draft();this.form.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth',block:'start'});this.form.querySelector('textarea').focus({preventScroll:true});}
  records(records){if(this.kind!=='task')return;const el=this.form.elements.recordId,value=el.value;el.innerHTML=tr('<option value="">不关联</option>')+records.map(r=>`<option value="${esc(r.id)}">${esc(r.date+' · '+r.title)}</option>`).join('');el.value=value||this.item?.recordId||'';}
  async upload(files){if(this.uploading||this.saving)return;this.uploading=true;const input=this.form.querySelector('[type=file]'),button=this.form.querySelector('[type=submit]');input.disabled=button.disabled=true;let added=0;try{for(const file of files){if(this.attachments.length>=50)throw Error(tr('每条最多添加 50 个附件'));this.state(tr`正在上传 ${file.name}`);this.attachments.push(await uploadFile(file));added++;this.paint();this.draft();}}catch(e){notify(e.message);}finally{input.value='';input.disabled=button.disabled=false;this.uploading=false;if(added)this.state(tr('附件已保存到草稿 · 保存后加入时间线'));}}
  async submit(){
   const button=this.form.querySelector('[type=submit]');if(button.disabled||this.uploading)return;const v=this.values(),content=(v.content||'').trim();if(!content&&!this.attachments.length){notify(tr('请输入内容或添加附件'));return;}
+  if(this.quickCapture?.active){
+   this.saving=true;this.form.inert=true;button.disabled=true;button.setAttribute('aria-busy','true');jellyRelease(button);
+   try{await this.quickCapture.submit();await waitForJelly(button);await scatterIcon(button,true);this.reset();}
+   catch(e){notify(e.message);this.draft();}finally{this.saving=false;this.form.inert=false;button.disabled=false;button.removeAttribute('aria-busy');}
+   return;
+  }
+  if(!this.item)return notify(tr('随手记尚未就绪')); // New items always pass through the interpreter.
   const current=localMinute(new Date());
   if(this.kind==='record'&&!this.item&&!this.timingEdited){v[this.kind==='record'?'date':'due']=current.slice(0,10);v[this.kind==='record'?'time':'dueTime']=current.slice(11);}
   if(this.kind==='record'&&!this.timingApplied){v.date=current.slice(0,10);v.time=current.slice(11);}
   if(this.kind==='task'&&!this.timingApplied){v.due='';v.dueTime='';}
   const daily=this.kind==='task'&&v.repeatFrequency!=='none';
-  if(!daily&&this.timingApplied&&(!v[this.kind==='record'?'date':'due']||!v[this.kind==='record'?'time':'dueTime'])){this.deadlineControls?.focusMissing();return notify(this.kind==='task'?tr('补上日期和时间，或取消勾选截止日期'):tr('请填写日期和时间（精确到分钟），或关闭“应用”'));}
+  const looseTime=this.item.timePeriod&&(this.kind==='record'?!this.item.time:this.item.due&&!this.item.dueTime&&!v.deadlineHour&&!v.deadlineMinute);
+  if(!daily&&this.timingApplied&&(!v[this.kind==='record'?'date':'due']||(!v[this.kind==='record'?'time':'dueTime']&&!looseTime))){this.deadlineControls?.focusMissing();return notify(this.kind==='task'?tr('补上日期和时间，或取消勾选截止日期'):tr('请填写日期和时间（精确到分钟），或关闭“应用”'));}
   if(daily&&(!validDate(v.startDate)||(v.endDate&&(!validDate(v.endDate)||v.endDate<v.startDate))))return notify(tr('请填写有效的计划起止日期'));
   const title=v.title?.trim()||content.split('\n')[0].slice(0,80)||this.attachments[0].name.slice(0,80),at=new Date().toISOString();
   const base={...(this.item||{}),id:this.item?.id||crypto.randomUUID(),createdAt:this.item?.createdAt||at,project:v.project?.trim()||'',attachments:structuredClone(this.attachments)};
   const item=this.kind==='record'?{...base,title,details:content,raw:this.item?.raw??content,date:v.date,time:v.time,suggestions:this.item?.suggestions||[],durationMinutes:v.durationMinutes?Number(v.durationMinutes):null,effort:v.effort,important:this.form.elements.important.checked}:{...base,...taskFields(content||title),due:v.due,dueTime:v.dueTime,autoSyncRecord:this.form.elements.autoSyncRecord.checked,priority:v.priority,status:v.status,recordId:v.recordId,startedAt:v.startedAt?new Date(v.startedAt).toISOString():'',completedAt:v.status==='done'?(v.completedAt?new Date(v.completedAt).toISOString():this.item?.status==='done'?(this.item.completedAt||''):at):''};
+  if(this.kind==='task'&&!daily&&!item.routineId){
+   item.afterTaskId=v.afterTaskId||'';
+   const exact=hasReminderTime(item.due,item.dueTime)||hasReminderTime(item.scheduledDate,item.scheduledTime);
+   if(!exact||this.oneOffRemind&&!this.oneOffRemind.checked)delete item.remind;
+   else if(this.oneOffRemind?.checked)item.remind=true;
+  }
+  if(item.timePeriod&&(this.kind==='record'?item.time!==this.item.time:!item.scheduledDate&&item.dueTime!==this.item.dueTime))delete item.timePeriod;
   if(daily){
    const slots=this.planControls.slots,frequency=v.repeatFrequency;
    if(v.scheduling==='times'&&(!slots.length||slots.some(s=>!/^([01]\d|2[0-3]):[0-5]\d$/.test(s.time))))return notify(tr('请给每次安排填写时间'));
    if(v.scheduling==='times'&&new Set(slots.map(s=>(frequency==='daily'?'':s.day)+s.time)).size!==slots.length)return notify(tr('同一天的安排时间不能重复'));
-   Object.assign(item,{planVersion:2,repeatDaily:frequency==='daily',repeatFrequency:frequency,startDate:v.startDate,endDate:v.endDate||'',due:'',dueTime:'',scheduling:v.scheduling,targetCount:v.scheduling==='times'?slots.length:Number(v.targetCount),slots:v.scheduling==='times'?structuredClone(slots):[],leadMinutes:Number(v.leadMinutes)||0,remind:v.remind===true,applyCurrent:v.applyCurrent===true});
+   Object.assign(item,{planVersion:2,repeatDaily:frequency==='daily',repeatFrequency:frequency,weekdaysOnly:v.weekdaysOnly===true&&(frequency==='daily'||frequency==='weekly'&&v.scheduling==='count'),startDate:v.startDate,endDate:v.endDate||'',due:'',dueTime:'',scheduling:v.scheduling,targetCount:v.scheduling==='times'?slots.length:Number(v.targetCount),slots:v.scheduling==='times'?structuredClone(slots):[],leadMinutes:Number(v.leadMinutes)||0,remind:v.remind===true,applyCurrent:v.applyCurrent===true});
   }
   if(this.kind==='task'&&!this.item&&!this.startedManually)item.startedAt=at;
   jellyRelease(button);button.disabled=true;this.saving=true;this.form.inert=true;button.dataset.state='saving';button.setAttribute('aria-busy','true');

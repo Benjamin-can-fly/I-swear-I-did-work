@@ -7,11 +7,13 @@ function hsl(hex){let [r,g,b]=hex.match(/\w\w/g).slice(0,3).map(v=>parseInt(v,16
 let accent=DEFAULT;try{const saved=localStorage.getItem(KEY);if(valid(saved))accent=saved;}catch{}
 function apply(color){
  if(!valid(color))return;accent=color.toLowerCase();const [h,s,l]=hsl(accent),dark=root.dataset.mode==='dark';
- // Keep the original lightness hierarchy: pale surfaces remain pale, text remains legible.
- for(const sheet of document.styleSheets){let rules;try{rules=sheet.cssRules;}catch{continue;}const visit=items=>{for(const rule of items){if(rule.cssRules)visit(rule.cssRules);if(!rule.style)continue;for(const match of rule.style.cssText.matchAll(/--tone-([0-9a-f]{6,8})/gi)){const hex=match[1],[,os,ol]=hsl(hex);root.style.setProperty('--tone-'+hex,!dark&&accent===DEFAULT?'#'+hex:`hsla(${h}, ${dark?Math.min(s,16):Math.min(s,os+12)}%, ${dark?(hex.length===8?0:ol>80?12+(100-ol)*.7:ol>55?76:(ol<30?92:84)):ol}%, ${hex.length===8?parseInt(hex.slice(6),16)/255:1})`);}}};visit(rules);}
+ // Dark surfaces and ordinary text stay neutral; the chosen hue is reserved for accents.
+ for(const sheet of document.styleSheets){let rules;try{rules=sheet.cssRules;}catch{continue;}const visit=items=>{for(const rule of items){if(rule.cssRules)visit(rule.cssRules);if(!rule.style)continue;for(const match of rule.style.cssText.matchAll(/--tone-([0-9a-f]{6,8})/gi)){const hex=match[1],[,os,ol]=hsl(hex);root.style.setProperty('--tone-'+hex,!dark&&accent===DEFAULT?'#'+hex:`hsla(${h}, ${dark?0:Math.min(s,os+12)}%, ${dark?(hex.length===8?0:ol>80?12+(100-ol)*.7:ol>55?76:(ol<30?92:84)):ol}%, ${hex.length===8?parseInt(hex.slice(6),16)/255:1})`);}}};visit(rules);}
  root.style.setProperty('--green',accent);root.style.setProperty('--accent',accent);root.style.setProperty('--accent-readable',dark?`hsl(${h} ${Math.min(s,45)}% 74%)`:`hsl(${h} ${s}% ${Math.min(l,38)}%)`);
+ root.style.setProperty('--accent-soft',`hsl(${h} ${Math.min(s,45)}% ${dark?19:95}%)`);
+ root.style.setProperty('--accent-line',`hsl(${h} ${Math.min(s,45)}% ${dark?48:66}%)`);
  const rgb=accent.slice(1).match(/../g).map(x=>{const c=parseInt(x,16)/255;return c<=.04045?c/12.92:((c+.055)/1.055)**2.4;});
- root.style.setProperty('--on-accent',rgb[0]*.2126+rgb[1]*.7152+rgb[2]*.0722>.179?'#18251e':'#ffffff');
+ root.style.setProperty('--on-accent',rgb[0]*.2126+rgb[1]*.7152+rgb[2]*.0722>.179?'#181818':'#ffffff');
  const svg=logoSVG(accent),url='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);
  document.querySelectorAll('.brand-mark,.theme-logo').forEach(i=>i.src=url);const favicon=document.querySelector('link[rel=icon]');if(favicon){favicon.type='image/svg+xml';favicon.href=url;}
  document.querySelector('meta[name=theme-color]')?.setAttribute('content',accent);
@@ -20,7 +22,8 @@ function apply(color){
  for(const id of ['accent-color','accent-hex']){const input=document.getElementById(id);if(input&&document.activeElement!==input)input.value=accent;}
  document.dispatchEvent(new CustomEvent('worklog-theme',{detail:{color:accent,svg}}));
 }
-function nativeTheme(){if(!window.chrome?.webview)return;const canvas=document.createElement('canvas');canvas.width=canvas.height=256;const img=new Image(),color=accent;img.onload=()=>{canvas.getContext('2d').drawImage(img,0,0,256,256);window.chrome.webview.postMessage({type:'set-theme',color,png:canvas.toDataURL('image/png').split(',')[1]});};img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(logoSVG(accent));}
+let nativeThemeRevision=0;
+function nativeTheme(){if(!window.chrome?.webview)return;const revision=++nativeThemeRevision,canvas=document.createElement('canvas');canvas.width=canvas.height=256;const img=new Image(),color=accent;img.onload=()=>{if(revision!==nativeThemeRevision)return;canvas.getContext('2d').drawImage(img,0,0,256,256);window.chrome.webview.postMessage({type:'set-theme',color,png:canvas.toDataURL('image/png').split(',')[1]});};img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(logoSVG(accent));}
 export function installAppearance(){
  const panel=document.querySelector('#settings-page');panel.innerHTML=tr`
  <section class="settings-section"><div class="setting-label"><h3>外观</h3><p>选一个看着舒服的。</p></div><div class="mode-options" role="group" aria-label="外观模式"><button data-mode="light" aria-pressed="false"><span class="mode-preview light-preview"><i></i><b></b><b></b></span><span>浅色模式</span></button><button data-mode="dark" aria-pressed="false"><span class="mode-preview dark-preview"><i></i><b></b><b></b></span><span>深色模式</span></button></div></section>

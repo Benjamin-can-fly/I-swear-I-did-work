@@ -1,0 +1,44 @@
+name: Release Work Log
+on:
+  push:
+    branches: [main]
+    paths: ['package.json']
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+jobs:
+  build:
+    uses: ./.github/workflows/desktop-build.yml
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.18.0'
+      - name: Check release source contains no user data
+        run: node scripts/release-privacy.mjs --source .
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: '*-installer'
+          merge-multiple: true
+          path: packages
+      - name: Publish verified packages and manual
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          VERSION=$(node -p "JSON.parse(require('fs').readFileSync('package.json','utf8')).version")
+          cd packages
+          for checksum in *.sha256; do sha256sum --check "$checksum"; done
+          test -f WorkLog-${VERSION}-windows-x64-setup.exe
+          test -f WorkLog-${VERSION}-macos-arm64.pkg
+          test -f WorkLog-${VERSION}-macos-x64.pkg
+          cp ../output/pdf/Work-Log-User-Guide.pdf Work-Log-User-Guide.pdf
+          if gh release view "v$VERSION" >/dev/null 2>&1; then
+            echo 'An existing release will not be overwritten.' >&2
+            exit 1
+          fi
+          gh release create "v$VERSION" ./* --target "$GITHUB_SHA" --title "Work Log $VERSION" --notes-file ../docs/RELEASE-0.2.13.md

@@ -1,0 +1,53 @@
+import assert from 'node:assert/strict';
+import {spawn} from 'node:child_process';
+import {once} from 'node:events';
+import {mkdtemp,readFile} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import path from 'node:path';
+import {chromium} from '@playwright/test';
+import {saveDailyPlan,materializeDaily} from '../src/lib/daily.js';
+
+const day='2026-11-05',at=day+'T23:50:00+08:00',port=43331,base='http://127.0.0.1:'+port;
+const dir=await mkdtemp(path.join(tmpdir(),'worklog-plan-delete-'));
+const server=spawn(process.execPath,['server/index.js'],{windowsHide:true,env:{...process.env,PORT:String(port),DATA_DIR:dir},stdio:'pipe'});
+const plan={id:'delete-plan',title:'删除测试计划',notes:'保留已经完成的历史',project:'',status:'next',priority:'normal',due:'',dueTime:'',recordId:'',createdAt:at,startDate:day,endDate:'',active:true,repeatFrequency:'daily',scheduling:'times',targetCount:2,planVersion:2,slots:[{id:'early',time:'00:10'},{id:'late',time:'23:59'}],leadMinutes:30,remind:false};
+let browser;
+const load=async()=>(await(await fetch(base+'/api/data')).json()).data;
+try{
+ await once(server.stdout,'data');assert.equal((await(await fetch(base+'/api/status')).json()).dataDirectory,dir);
+ let fixture=saveDailyPlan({version:1,tasks:[],records:[]},plan,day,at);
+ fixture.tasks[0].status='done';fixture.tasks[0].completedAt=at;
+ fixture=materializeDaily(fixture,day,at);
+ assert.ok(fixture.tasks.some(t=>t.routineDate==='2026-11-06'),'fixture contains a pre-generated future task');
+ const save=await fetch(base+'/api/data',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({revision:0,data:fixture})});assert.equal(save.status,200,await save.text());
+ browser=await chromium.launch({channel:'msedge',headless:true});
+ const page=await browser.newPage({timezoneId:'Asia/Shanghai',reducedMotion:'reduce'}),errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.clock.install({time:new Date(at)});await page.goto(base);
+ await page.locator('.daily-card [data-entry-menu]').first().click();
+ await page.getByRole('menuitem',{name:'删除本次',exact:true}).click();
+ await page.waitForFunction(async()=>(await(await fetch('/api/data')).json()).data.tasks.length===3);
+ let saved=await load();assert.equal(saved.routines.length,1);assert.equal(saved.tasks.length,fixture.tasks.length-1);
+ await page.getByRole('button',{name:'撤销',exact:true}).click();
+ await page.waitForFunction(async()=>(await(await fetch('/api/data')).json()).data.tasks.length===4);
+ await page.locator('.daily-card [data-entry-menu]').first().click();
+ await page.getByRole('menuitem',{name:'删除整个计划',exact:true}).click();
+ await page.waitForFunction(async()=>!(await(await fetch('/api/data')).json()).data.routines.length);
+ saved=await load();assert.equal(saved.tasks.length,1);assert.equal(saved.tasks[0].status,'done');
+ assert.equal(await page.locator('.daily-card .today-task:not(.completed)').count(),0);
+ // The undo is a single restore of both the template and generated occurrences.
+ await page.getByRole('button',{name:'撤销',exact:true}).click();
+ await page.waitForFunction(async()=>(await(await fetch('/api/data')).json()).data.routines.length===1);
+ saved=await load();assert.equal(saved.tasks.length,fixture.tasks.length);
+ await page.locator('[data-manage-daily]').click();await page.locator('[data-plan-menu]').click();
+ await page.getByRole('menuitem',{name:'删除计划',exact:true}).click();
+ await page.waitForFunction(async()=>!(await(await fetch('/api/data')).json()).data.routines.length);
+ await page.reload();await page.locator('#today-page').waitFor({state:'visible'});
+ assert.equal(await page.locator('.daily-card .today-task:not(.completed)').count(),0);
+ await page.clock.fastForward(20*60000);
+ await page.waitForFunction(()=>document.querySelector('#today-subtitle')?.textContent?.includes('11月6日')||document.querySelector('#today-label')?.textContent?.includes('11月6日'));
+ assert.equal(await page.locator('.daily-card .today-task:not(.completed)').count(),0);
+ const disk=JSON.parse(await readFile(path.join(dir,'journal.json'),'utf8'));
+ assert.equal(disk.routines.length,0);assert.equal(disk.tasks.length,1);assert.equal(disk.tasks[0].status,'done');
+ assert.deepEqual(errors,[]);
+ console.log('PASS: delete this occurrence versus entire plan from Today and manager, undo, persisted reload and next-day refresh; completed history retained and future occurrences absent.');
+}finally{await browser?.close();server.kill();}

@@ -41,6 +41,7 @@ def build(arch):
             shutil.copy2(ROOT/name, code/name)
         for name in ['src','server']:
             shutil.copytree(ROOT/name, code/name)
+        run(runtime/'node', ROOT/'scripts/release-privacy.mjs', '--runtime', code)
         for name in ['LICENSE','THIRD-PARTY-NOTICES.md']:
             if (ROOT/name).exists(): shutil.copy2(ROOT/name, resources/name)
         shutil.copy2(ROOT/'output/pdf/Work-Log-User-Guide.pdf',resources/'使用说明.pdf')

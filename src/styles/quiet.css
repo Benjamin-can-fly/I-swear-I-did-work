@@ -1,4 +1,14 @@
 /* One shared, quiet surface across the workspace. No control is hover-only. */
+.capture-model-state{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin:8px 0;font-size:11px;line-height:1.6;color:var(--muted)}
+.capture-model-state:empty{display:none}
+.capture-model-state button{padding:3px 8px;border:1px solid var(--line);border-radius:999px;font-size:inherit}
+.task-dependency{display:block;margin-top:6px;font-size:11px;line-height:1.6;color:var(--muted)}
+.today-waiting{margin-top:18px;border-top:1px solid var(--line)}
+.today-waiting>summary{cursor:pointer;padding:12px 0;font-size:12px;color:var(--muted)}
+.today-waiting>summary span{margin-left:8px}
+.followup-highlight{outline:1px solid var(--accent-line);outline-offset:4px;border-radius:9px;background:var(--accent-soft);transition:background .2s ease}
+.is-waiting .task-check{border-style:dashed;cursor:default}
+.is-waiting .task-writing:disabled,.is-waiting .today-task-title:disabled{color:var(--muted);cursor:default}
 :root{--quiet-surface:color-mix(in srgb,var(--canvas) 95%,var(--accent,#466453));--quiet-line:color-mix(in srgb,var(--ink) 10%,var(--canvas));--radius:14px}
 .workspace{max-width:1440px;padding:14px 32px 24px;gap:0}
 .page-heading,[data-active-page=today] .page-heading{min-height:48px;margin-bottom:14px;padding-right:0}
@@ -120,3 +130,143 @@ dialog{border:1px solid var(--quiet-line);border-radius:16px;padding:24px;backgr
 .frequency-dates span{text-align:center;white-space:nowrap}.frequency-dates span:first-child{text-align:left}.frequency-dates span:last-child{text-align:right}
 @media(max-width:700px){.inline-composer>.task-deadline{gap:6px 14px}.deadline-segments{gap:5px}.deadline-part.part-hour{margin-left:4px}.deadline-weekday{margin-left:0}.frequency-tip{font-size:10px;padding:8px;gap:7px}.frequency-chart{padding-left:27px}.frequency-bars{gap:1px}}
 @media(prefers-reduced-motion:reduce){.frequency-tip,.frequency-fill,.deadline-check{transition:none}}
+
+/* Dark mode uses charcoal surfaces regardless of the selected accent hue. */
+:root[data-mode=dark]{--quiet-surface:#181818;--quiet-line:#353535}
+[data-mode=dark] .nav-indicator{background:#272727}
+[data-mode=dark] .inline-composer:focus-within{border-color:#666;box-shadow:0 0 0 1px #666}
+[data-mode=dark] dialog::backdrop{background:#0008}
+
+/* Accented controls use the same palette in both modes. Large surfaces stay neutral. */
+:root{--danger-soft:#f5dfd6;--danger-ink:#963f29}
+:root[data-mode=dark]{--danger-soft:#432a28;--danger-ink:#f0a798}
+:is(button,input,select,textarea,a,summary):focus-visible{outline-color:var(--accent-readable)}
+input[type=checkbox],input[type=radio],input[type=range]{accent-color:var(--accent)}
+.nav-item.active,.task-check[aria-pressed=true]{color:var(--accent-readable)}
+.sync-option input:checked+.sync-track{background:var(--accent);border-color:var(--accent)}
+.sync-option input:focus-visible+.sync-track{outline-color:var(--accent-readable)}
+.apply-time[aria-pressed=true]{background:var(--accent-soft);border-color:var(--accent-line);color:var(--accent-readable)}
+.apply-time[aria-pressed=true] .apply-indicator{background:var(--accent-readable);border-color:var(--accent-readable)}
+.segmented button.selected{color:var(--accent-readable)}
+[data-mode=dark] .segmented button.selected{color:var(--accent-readable)}
+.report-item input,.report-groups input{accent-color:var(--accent)}
+.report-item:has(input:checked){color:var(--accent-readable)}
+.load-chart path,.load-chart circle{stroke:var(--accent-readable)}
+.usage-bar rect{fill:var(--accent-line)}
+.usage-bar:hover rect{fill:var(--accent-readable)}
+.chart-day.selected{background:var(--accent-soft)}
+.task-writing:hover .task-title{color:var(--accent-readable)}
+.file-drag-over{outline-color:var(--accent-line)}
+.file-drag-over:after{background:var(--surface);color:var(--accent-readable)}
+::selection{background:var(--accent);color:var(--on-accent)}
+
+/* Deadline colors are semantic, independent of the chosen theme accent. */
+:root{--overdue-ink:#b02b35;--soon-ink:#876100;--selected-neutral:#e5e5e5;--warning-soft:#fff5cc}
+:root[data-mode=dark]{--overdue-ink:#ff9299;--soon-ink:#f2cf63;--selected-neutral:#383838;--warning-soft:#332d19}
+select,select option{background-color:var(--surface);color:var(--ink);color-scheme:light}
+[data-mode=dark] select,[data-mode=dark] select option{color-scheme:dark}
+select,.range-select,.secondary,.batch-bar button,.urgency-summary button{border-radius:999px}
+.layout-switch{display:inline-flex;flex:none;padding:3px;border:1px solid var(--quiet-line);border-radius:999px;gap:3px;background:var(--surface)}
+.layout-switch button{border:0;border-radius:999px;padding:7px 14px;background:transparent;color:var(--muted);font:inherit;font-size:12px;transition:transform .14s,background .14s}
+.layout-switch button[aria-pressed=true],.layout-switch button[aria-pressed=true]:hover{background:var(--selected-neutral);color:var(--ink);font-weight:600}
+.layout-switch button:hover{background:var(--quiet-surface)}
+.layout-switch button:active{transform:scale(.94)}
+[data-urgency=overdue]{--urgency-color:var(--overdue-ink)}
+[data-urgency=soon]{--urgency-color:var(--soon-ink)}
+:is([data-urgency=overdue],[data-urgency=soon]) :is(.task-title,.task-date time,.today-task-title,.unified-title,.event-status,.urgency-caption){color:var(--urgency-color)!important}
+:is([data-urgency=overdue],[data-urgency=soon]) .timeline-node{border-color:var(--urgency-color)}
+.task-countdown[data-tone=overdue],.task-countdown[data-tone=overdue] strong{color:var(--overdue-ink)}
+.task-countdown[data-tone=soon],.task-countdown[data-tone=soon] strong{color:var(--soon-ink)}
+.urgency-caption{display:block;font-size:11px;margin-top:6px;font-variant-numeric:tabular-nums}
+.urgency-summary{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 14px}
+.urgency-summary button{font:inherit;font-size:12px;padding:7px 13px;border:1px solid currentColor;background:transparent;transition:transform .14s}
+.urgency-summary .is-overdue,.today-overdue>summary{color:var(--overdue-ink)}
+.urgency-summary .is-soon{color:var(--soon-ink)}
+.urgency-summary button:active{transform:scale(.95)}
+.batch-bar{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin:10px 0 16px;font-size:12px}
+.batch-bar small{width:100%;font-size:11px;color:var(--muted)}
+.batch-bar .secondary{padding:7px 13px;font-size:12px}
+.batch-bar button[aria-pressed=true]{background:var(--selected-neutral);color:var(--ink)}
+.batch-bar .batch-delete{color:var(--overdue-ink);margin-left:auto}
+.batch-check{display:flex;align-items:center;justify-content:center;flex:none;cursor:pointer}
+.batch-check input{width:20px;height:20px;margin:0;cursor:pointer}
+[data-batch-row] .task-check{display:none}
+[data-batch-row] .task-writing{pointer-events:none}
+.record[data-batch-row]{position:relative;padding-left:32px}
+.record>.batch-check{position:absolute;left:0;top:22px}
+[data-batch-row]:has(.batch-check input:checked){background:var(--quiet-surface);border-radius:12px}
+.missed-overview{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:18px 32px;border:1px solid var(--quiet-line);border-radius:20px;padding:22px 24px;margin-bottom:24px;background:var(--quiet-surface)}
+.missed-overview h2{font-size:16px;font-weight:600;margin:0 0 12px;color:var(--ink)}
+.missed-number{font-size:52px;font-weight:600;line-height:1.1;color:var(--overdue-ink);font-variant-numeric:tabular-nums;display:flex;align-items:baseline;gap:10px}
+.missed-number>span{font-size:16px;font-weight:400;color:var(--ink)}
+.missed-number small{font-size:12px;color:var(--muted)}
+.missed-overview p,.missed-method{font-size:11px;line-height:1.7;color:var(--muted);margin:12px 0 0}
+.missed-totals{display:flex;flex-direction:column;justify-content:center;align-items:flex-start;gap:14px;font-size:13px}
+.missed-totals strong{font-size:22px;color:var(--overdue-ink);margin:0 5px}
+.missed-totals button{border:0;background:transparent;color:var(--ink);padding:0;font:inherit}
+.missed-strip{grid-column:1/-1;display:grid;grid-template-columns:repeat(auto-fit,minmax(42px,1fr));gap:6px}
+.missed-strip button{display:flex;flex-direction:column;align-items:center;gap:5px;border:1px solid var(--quiet-line);border-radius:12px;padding:8px 2px;background:var(--surface);color:var(--muted);font:inherit;font-size:10px}
+.missed-strip button.is-missed{color:var(--overdue-ink);border-color:var(--overdue-ink)}
+.missed-strip strong{font-size:14px}.missed-method{grid-column:1/-1;margin:0}
+.missed-day-note{font-size:12px;line-height:1.6;color:var(--overdue-ink);padding:7px 0;margin:0 0 8px;border-bottom:1px dashed var(--quiet-line)}
+@media(max-width:700px){.missed-overview{grid-template-columns:1fr;padding:18px;gap:14px}.missed-totals{flex-direction:row;flex-wrap:wrap;gap:18px}.missed-number{font-size:42px}.layout-switch button{padding:7px 10px;font-size:11px}.unified-toolbar{flex-wrap:wrap}.batch-bar small{line-height:1.6}}
+
+.capture-on .composer-context,.capture-on .form-field:has([name=completedAt]){display:none}
+.inline-composer.capture-on .section-kicker .clear-composer{margin-inline-start:auto}
+.composer-group{padding:12px 0;min-width:0;border-bottom:1px solid var(--quiet-line)}
+.composer-group:first-child{padding-top:0}.composer-group:last-child{border:0;padding-bottom:0}
+.composer-group>.group-label{display:block;margin:0 0 9px;color:var(--muted);font-size:11px;font-weight:600}
+.composer-group .composer-plan-settings{padding:0;border:0}
+.composer-group .composer-meta{display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px;font-size:12px}
+.composer-group .sync-option{width:fit-content}.composer-group .sync-option input{width:30px}
+.inline-composer .composer-group .form-field{margin-bottom:8px}
+.inline-composer .composer-group .form-grid:last-child>.form-field{margin-bottom:0}
+.inline-composer .composer-group .task-deadline .deadline-part input{width:3ch}
+.inline-composer .composer-group .task-deadline .part-year input{width:5ch}
+.composer-group [hidden],.composer-group[hidden]{display:none!important}
+.composer-group .composer-meta label{font-size:12px}
+.inline-composer .attachment-upload,.inline-composer .expand-fields{border-radius:999px}
+.inline-composer .primary{border-radius:999px}
+.inline-composer .capture-preview .capture-line-fields{align-items:start}
+.capture-plan-fields{display:flex;flex:1 1 100%;align-items:center;flex-wrap:wrap;gap:8px 14px;min-width:0}
+.capture-plan-fields input[type=number]{width:6em}.capture-slots{display:grid;gap:7px;max-width:100%}
+.capture-slot,.plan-extra>div{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.capture-slot button{border:0;background:transparent;color:var(--muted);border-radius:50%;width:26px;height:26px}
+.capture-slot button:hover{color:var(--ink);background:var(--accent-soft)}
+.capture-plan-fields>.plan-extra{flex-basis:100%;padding:2px 0;color:var(--muted)}
+.capture-plan-fields>.plan-extra>summary{font-size:11px;color:var(--muted)}
+.plan-extra>div{padding-top:8px}
+.capture-preview:empty{display:none}.capture-preview:not(:empty){margin:4px 0 8px}
+.capture-results>summary{display:inline-flex;align-items:center;gap:8px;cursor:pointer;list-style:none;border-radius:999px;padding:5px 10px;color:var(--muted);font-size:12px;transition:background .12s,transform .12s}
+.capture-results>summary::-webkit-details-marker{display:none}
+.capture-results>summary::before{display:none}
+.capture-results>summary::after{content:"";width:5px;height:5px;border:solid currentColor;border-width:0 1.5px 1.5px 0;transform:rotate(45deg);transition:transform .14s}
+.capture-results[open]>summary::after{transform:rotate(225deg)}
+.capture-results>summary:hover,.capture-results>summary:focus-visible{background:var(--surface);color:var(--ink)}
+.capture-results>summary:active{transform:scale(.96)}
+.capture-results[open]{border-top:1px solid var(--quiet-line);padding-top:4px}
+.capture-cloud-config{max-width:100%}
+.capture-cloud-config>summary{cursor:pointer;font-size:12px}
+.capture-cloud-config>small{display:block;margin:6px 0}
+.capture-cloud-config>div{display:flex;flex-wrap:wrap;gap:8px}
+.capture-cloud-config input{width:260px;max-width:100%;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink)}
+.capture-on :is(.deadline-options,.task-execution-options,.record-time-options),.capture-on .form-field:has([name=priority]){display:none}
+@media(prefers-reduced-motion:reduce){.capture-results>summary,.capture-results>summary::after{transition:none}}
+.capture-line{padding:7px 0;border-bottom:1px solid var(--quiet-line);font-size:12px}.capture-line summary{cursor:pointer;overflow-wrap:anywhere;color:var(--ink)}
+.capture-line>summary{display:flex;align-items:baseline;gap:8px;list-style:none;line-height:1.55}
+.capture-line>summary::-webkit-details-marker{display:none}
+.capture-line>summary::before{content:"";flex:0 0 5px;height:5px;border:solid var(--muted);border-width:0 1.5px 1.5px 0;transform:translateY(-1px) rotate(-45deg);transition:transform .14s ease}
+.capture-line[open]>summary::before{transform:translateY(-2px) rotate(45deg)}
+.capture-line>summary:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:4px}
+@media(prefers-reduced-motion:reduce){.capture-line>summary::before{transition:none}}
+.capture-line-fields{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:8px 0}.capture-line-fields label{display:inline-flex;align-items:center;gap:6px}
+.capture-line-fields :is(input,select){max-width:100%;min-width:0;padding:5px 8px;border:1px solid var(--quiet-line);border-radius:8px;background:var(--surface);color:var(--ink);font:inherit}
+.capture-line-fields input[data-field=text]{flex:1 1 180px}
+
+.capture-line-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;max-width:680px}
+.capture-line-fields>input[data-field=text],.capture-line-fields>.capture-arrangement,.capture-line-fields>.capture-plan-fields,.capture-line-fields>.capture-timing{grid-column:1/-1}
+.capture-line-fields label{flex-wrap:wrap;align-items:center}
+.capture-timing{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.capture-timing label{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.capture-plan-fields{max-width:100%}
+@media(max-width:560px){.capture-line-fields,.capture-timing{grid-template-columns:minmax(0,1fr)}}

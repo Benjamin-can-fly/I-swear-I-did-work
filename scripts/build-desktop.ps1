@@ -16,7 +16,18 @@ foreach($file in @('Microsoft.Web.WebView2.Core.dll','Microsoft.Web.WebView2.Win
 Copy-Item -LiteralPath (Join-Path $webview 'runtimes/win-x64/native/WebView2Loader.dll') -Destination $stage -Force
 Copy-Item -LiteralPath (Join-Path $root 'desktop/assets/app.ico') -Destination (Join-Path $stage 'WorkJournal.ico') -Force
 $csc=Join-Path $env:WINDIR 'Microsoft.NET/Framework64/v4.0.30319/csc.exe'
-& $csc /nologo /target:winexe /platform:x64 /optimize+ "/out:$stage\WorkJournal.exe" "/win32manifest:$root\desktop\app.manifest" "/win32icon:$root\desktop\assets\app.ico" "/resource:$root\desktop\assets\app.ico,app.ico" /reference:System.Windows.Forms.dll /reference:System.Drawing.dll /reference:System.Web.Extensions.dll "/reference:$stage\Microsoft.Web.WebView2.Core.dll" "/reference:$stage\Microsoft.Web.WebView2.WinForms.dll" "$root\desktop\Program.cs"
+$metadata=Join-Path $env:WINDIR 'System32/WinMetadata'
+$winrtRefs=@('/reference:System.Runtime.dll')+@('Windows.UI','Windows.Data','Windows.Foundation'|ForEach-Object {"/reference:$metadata\$_.winmd"})
+$versionInfo=Join-Path $deps 'WorkLogVersion.cs'
+@"
+using System.Reflection;
+[assembly:AssemblyTitle("Work Log")]
+[assembly:AssemblyProduct("Work Log")]
+[assembly:AssemblyDescription("Work Log")]
+[assembly:AssemblyFileVersion("$version.0")]
+[assembly:AssemblyInformationalVersion("$version")]
+"@ | Set-Content -LiteralPath $versionInfo -Encoding utf8
+& $csc /nologo /target:winexe /platform:x64 /optimize+ "/out:$stage\WorkJournal.exe" "/win32manifest:$root\desktop\app.manifest" "/win32icon:$root\desktop\assets\app.ico" "/resource:$root\desktop\assets\app.ico,app.ico" /reference:System.Windows.Forms.dll /reference:System.Drawing.dll /reference:System.Web.Extensions.dll @winrtRefs "/reference:$stage\Microsoft.Web.WebView2.Core.dll" "/reference:$stage\Microsoft.Web.WebView2.WinForms.dll" $versionInfo "$root\desktop\Program.cs" "$root\desktop\WindowsNotifications.cs" "$root\desktop\RegistrationShortcut.cs"
 if($LASTEXITCODE -ne 0){throw 'Desktop compilation failed'}
 $node=(Get-Command node.exe).Source
 Copy-Item -LiteralPath $node -Destination (Join-Path $stage 'runtime/node.exe') -Force
@@ -36,6 +47,8 @@ Work Log
 '@ | Set-Content -LiteralPath (Join-Path $stage '首次使用.txt') -Encoding utf8
 $notices="Node.js: see runtime/LICENSE`r`nMicrosoft WebView2 SDK:`r`n"+(Get-Content -LiteralPath (Join-Path $webview 'LICENSE.txt') -Raw)+"`r`n"+(Get-Content -LiteralPath (Join-Path $webview 'NOTICE.txt') -Raw)
 Set-Content -LiteralPath (Join-Path $stage 'THIRD-PARTY-NOTICES.txt') -Value $notices -Encoding utf8
+& node (Join-Path $root 'scripts/release-privacy.mjs') --runtime (Join-Path $stage 'app')
+if($LASTEXITCODE -ne 0){throw 'Release privacy check failed'}
 if($StageOnly){Write-Output "Desktop staged: $stage";exit}
 $uninstall=Join-Path $deps 'uninstall-files.nsh'
 $lines=@()

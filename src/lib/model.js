@@ -1,4 +1,5 @@
 import { validDate } from './dates.js';
+import {validateDependencies} from './task-dependencies.js';
 export const emptyData=()=>({version:1,records:[],tasks:[]});
 const str=(v,n)=>typeof v==='string'&&v.length<=n;
 const optionalDate=v=>v===''||validDate(v);
@@ -10,7 +11,9 @@ export function validateData(d) {
    for(const p of d.routines)if(!str(p.id,60)||!validDate(p.startDate)||!optionalDate(p.endDate)||p.endDate&&p.endDate<p.startDate||typeof p.active!=='boolean'||!['daily','weekly','monthly'].includes(p.repeatFrequency||(p.repeatDaily?'daily':''))||!optionalDate(p.lastGeneratedDate||''))throw Error('计划日期或设置不正确');
   }
   for(const p of d.routines||[]){
+   if(p.weekdaysOnly!==undefined&&typeof p.weekdaysOnly!=='boolean')throw Error('工作日设置不正确');
    if(p.planVersion!==undefined&&p.planVersion!==2)throw Error('计划版本不正确');
+   if(p.historyTrackedThrough!==undefined&&!validDate(p.historyTrackedThrough))throw Error('计划日期或设置不正确');
    if(p.effectiveFrom!==undefined&&!validDate(p.effectiveFrom))throw Error('计划生效日期不正确');
    if(p.generatedPeriods!==undefined&&(!Array.isArray(p.generatedPeriods)||p.generatedPeriods.length>3||p.generatedPeriods.some(v=>!validDate(v))))throw Error('计划周期不正确');
    if(p.planVersion===2){
@@ -25,6 +28,9 @@ export function validateData(d) {
    }
   }
   const ids=new Set();
+  for(const entry of [...d.records,...d.tasks]){
+    if(entry.timePeriod!==undefined&&!['','dawn','morning','noon','afternoon','evening','night'].includes(entry.timePeriod))throw Error('时段不正确');
+  }
   for(const entry of [...d.records,...d.tasks])if(entry.attachments!==undefined){
    if(!Array.isArray(entry.attachments)||entry.attachments.length>50)throw Error('每条最多添加 50 个附件');
    for(const a of entry.attachments)if(!a||!str(a.id,36)||!/^[a-f0-9-]{36}$/.test(a.id)||!str(a.name,200)||!Number.isInteger(a.size)||a.size<1||a.size>20*1024*1024||typeof a.image!=='boolean'||!str(a.type,100))throw Error('附件信息不正确');
@@ -47,6 +53,8 @@ export function validateData(d) {
     for(const k of ['scheduledAt','visibleFrom'])if(t[k]!==undefined&&t[k]!==''&&(!str(t[k],100)||!Number.isFinite(Date.parse(t[k]))))throw Error('计划时间不正确');
     if(t.routineEnd!==undefined&&(!validDate(t.routineEnd)||!validDate(t.routineDate)||t.routineEnd<t.routineDate))throw Error('计划任务周期不正确');
     if(t.repeatFrequency!==undefined&&!['none','daily','weekly','monthly'].includes(t.repeatFrequency))throw Error('计划频率不正确');
+    if(t.captureRaw!==undefined&&!str(t.captureRaw,20201)||t.completionNote!==undefined&&!str(t.completionNote,20201))throw Error('事项内容不正确');
+    if(t.scheduledTime&&!/^([01]\d|2[0-3]):[0-5]\d$/.test(t.scheduledTime))throw Error('计划时间不正确');
     if(t.scheduledDate!==undefined&&!optionalDate(t.scheduledDate))throw Error('安排日期不正确');
     if(t.autoSyncRecord!==undefined&&typeof t.autoSyncRecord!=='boolean')throw Error('自动同步设置不正确');
     for(const key of ['startedAt','completedAt'])if(t[key]!==undefined&&t[key]!==''&&(!str(t[key],100)||!Number.isFinite(Date.parse(t[key]))))throw Error('任务时间不正确');
@@ -56,6 +64,7 @@ export function validateData(d) {
     if(!str(t.id,100)||!t.id||tids.has(t.id)||!str(t.title,200)||!t.title.trim()||!str(t.notes,20201)||!str(t.project,80)||!optionalDate(t.due)||!['today','next','paused','done'].includes(t.status)||!['normal','high','low'].includes(t.priority)||!str(t.recordId,100)||!str(t.createdAt,100)||!Number.isFinite(Date.parse(t.createdAt)))throw Error('待办字段不正确');
     tids.add(t.id);
   }
+  validateDependencies(d.tasks);
   return d;
 }
 export function mergeData(current,incoming) {

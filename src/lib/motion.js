@@ -64,14 +64,14 @@ function activate(el,kind,previous){
   case 'organize':jellyRelease(el);if(el.dataset.state!=='working')play(el.querySelector('svg'),[{transform:'rotate(0)'},{transform:'rotate(180deg)'}],420);break;
   case 'summary':jellyRelease(el);break;
   case 'save':jellyRelease(el);play(el.querySelector('.submit-glyph'),[{transform:'translateY(2px) scale(.65)'},{transform:'translateY(-2px) scale(1.2)',offset:.45},{transform:'translateY(0) scale(1)'}],480);break;
-  case 'date':play(el,[{backgroundColor:'var(--tone-d4e6cf,#d4e6cf)',clipPath:'inset(10% round 6px)'},{backgroundColor:'transparent',clipPath:'inset(0% round 6px)'}],280);break;
+  case 'date':play(el,[{backgroundColor:'var(--accent-soft)',clipPath:'inset(10% round 6px)'},{backgroundColor:getComputedStyle(el).backgroundColor,clipPath:'inset(0% round 6px)'}],280);break;
   case 'checkbox':play(el,[{transform:'scale(.8)'},{transform:'scale(1.15)',offset:.6},{transform:'scale(1)'}],240);break;
-  case 'field':play(el,[{boxShadow:'inset 0 -2px var(--tone-658b70,#658b70)',backgroundColor:'var(--tone-f1f7ef,#f1f7ef)'},{boxShadow:'inset 0 0 var(--tone-658b7000,#658b7000)',backgroundColor:'#ffffff'}],400);break;
-  case 'select':play(el,[{borderColor:'var(--tone-567f61,#567f61)',backgroundColor:'var(--tone-e7f1e3,#e7f1e3)'},{borderColor:'var(--tone-e7ece8,#e7ece8)',backgroundColor:'#fff'}],380);break;
+  case 'field':play(el,[{boxShadow:'inset 0 -2px var(--accent-readable)',backgroundColor:'var(--accent-soft)'},{boxShadow:getComputedStyle(el).boxShadow,backgroundColor:getComputedStyle(el).backgroundColor}],400);break;
+  case 'select':play(el,[{borderColor:'var(--accent-line)',backgroundColor:'var(--accent-soft)'},{borderColor:getComputedStyle(el).borderColor,backgroundColor:getComputedStyle(el).backgroundColor}],380);break;
   case 'download':case 'upload':play(el.querySelector('svg')||el,[{translate:'0 0',opacity:1},{translate:`0 ${kind==='download'?7:-7}px`,opacity:.35,offset:.5},{translate:'0 0',opacity:1}],360);break;
   case 'edit':case 'link':underline(el);break;
-  case 'danger':play(el,[{backgroundColor:'#f5dfd6',color:'#963f29'},{backgroundColor:'transparent',color:'#b07d60'}],420);break;
-  case 'secondary':play(el,[{boxShadow:'inset 0 0 0 1px var(--tone-7e9b74,#7e9b74)',backgroundColor:'var(--tone-edf4e9,#edf4e9)'},{boxShadow:'inset 0 0 0 0px var(--tone-7e9b7400,#7e9b7400)',backgroundColor:'#fff'}],260);break;
+  case 'danger':play(el,[{backgroundColor:'var(--danger-soft)',color:'var(--danger-ink)'},{backgroundColor:getComputedStyle(el).backgroundColor,color:getComputedStyle(el).color}],420);break;
+  case 'secondary':play(el,[{boxShadow:'inset 0 0 0 1px var(--accent-line)',backgroundColor:'var(--accent-soft)'},{boxShadow:getComputedStyle(el).boxShadow,backgroundColor:getComputedStyle(el).backgroundColor}],260);break;
   case 'text':underline(el);break;
   // Navigation, completion, folding and closing animate the affected content.
  }

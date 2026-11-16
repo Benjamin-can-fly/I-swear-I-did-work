@@ -4,7 +4,7 @@ export function installTaskGesture(root,complete){
  root.addEventListener('pointerdown',e=>{
   if(e.button!==0||e.pointerType!=='mouse')return;
   const row=e.target.closest('.task-row:not(.completed)');
-  if(!row||e.target.closest('a,input,select,.task-check,.task-more,.task-meta'))return;
+  if(!row||row.hasAttribute('data-batch-row')||e.target.closest('a,input,select,.task-check,.task-more,.task-meta'))return;
   gesture={row,id:row.dataset.task,x:e.clientX,y:e.clientY,pointer:e.pointerId,active:false,cancelled:false};
  });
  const clear=()=>{if(gesture){gesture.row.classList.remove('swipe-ready','swiping');gesture.row.style.removeProperty('--swipe-progress');}gesture=null;};

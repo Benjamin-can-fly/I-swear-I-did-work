@@ -9,7 +9,7 @@ const delay=ms=>new Promise(r=>setTimeout(r,ms));
 for(const reuse of [false,true]){
  const temp=await mkdtemp(path.join(os.tmpdir(),'journal-native-'));
  const port=reuse?43174:43173,origin=`http://127.0.0.1:${port}`;
- const env={...process.env,WORKJOURNAL_TEST_MODE:'1',WORKJOURNAL_DATA_DIR:temp,WORKJOURNAL_PORT:String(port),WORKJOURNAL_TEST_SCRIPT:path.join(root,'tests/desktop-smoke.js')};
+ const env={...process.env,WORKLOG_CAPTURE_OFFLINE:'1',WORKJOURNAL_TEST_MODE:'1',WORKJOURNAL_DATA_DIR:temp,WORKJOURNAL_PORT:String(port),WORKJOURNAL_TEST_SCRIPT:path.join(root,'tests/desktop-smoke.js')};
  delete env.NODE_OPTIONS;delete env.PARENT_PID;
  let backend,app;
  try{
