@@ -26,8 +26,18 @@
   await wait(()=>taskForm.querySelector('.composer-title').textContent.includes('编辑'));
   if(taskForm.querySelector('.composer-fields').hidden)click('#task-form .expand-fields');
   if(taskForm.elements.deadlineHour.value!=='16'||taskForm.elements.deadlineMinute.value!=='32')throw Error('修改未恢复分钟级时间');
-  taskForm.elements.deadlineMinute.value='';taskForm.elements.deadlineMinute.dispatchEvent(new Event('input',{bubbles:true}));click('#new-task');
-  await wait(()=>document.querySelector('#toast span').textContent.includes('补上日期和时间'));
+  // WebKit may reject a partial native time value before dispatching submit.
+  // Accept that real validation path too, but only for the deadline being edited.
+  const deadlineNames=new Set(['due','dueTime','deadlineYear','deadlineMonth','deadlineDay','deadlineHour','deadlineMinute']);
+  const invalidDeadline=new Set(),captureInvalid=e=>{if(!e.target.validity.valid)invalidDeadline.add(e.target.name);};
+  taskForm.addEventListener('invalid',captureInvalid,true);
+  taskForm.elements.deadlineMinute.value='';taskForm.elements.deadlineMinute.dispatchEvent(new Event('input',{bubbles:true}));
+  if(taskForm.elements.dueTime.value!=='')throw Error('缺失分钟未清空待保存的截止时间');
+  click('#new-task');
+  try{await wait(()=>document.querySelector('#toast span').textContent.includes('补上日期和时间')||invalidDeadline.size>0);}
+  finally{taskForm.removeEventListener('invalid',captureInvalid,true);}
+  if([...invalidDeadline].some(name=>!deadlineNames.has(name)))throw Error('其他字段意外阻止截止日期校验: '+[...invalidDeadline].join(', '));
+  if(!taskForm.querySelector('.composer-title').textContent.includes('编辑')||taskForm.elements.deadlineMinute.value!=='')throw Error('无效截止日期不应结束编辑或补填分钟');
   if((await(await fetch('/api/data')).json()).data.tasks.find(t=>t.id===taskData.id).dueTime!=='16:32')throw Error('不完整日期不应保存');
   for(const [key,value] of Object.entries({deadlineHour:'17',deadlineMinute:'05'})){const input=taskForm.elements[key];input.value=value;input.dispatchEvent(new Event('input',{bubbles:true}));}
   click('#new-task');await wait(()=>taskForm.elements.content.value==='');

@@ -248,7 +248,10 @@ select,.range-select,.secondary,.batch-bar button,.urgency-summary button{border
 .capture-cloud-config{max-width:100%}
 .capture-cloud-config>summary{cursor:pointer;font-size:12px}
 .capture-cloud-config>small{display:block;margin:6px 0}
-.capture-cloud-config>div{display:flex;flex-wrap:wrap;gap:8px}
+.capture-cloud-config>div{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:8px}
+.capture-cloud-config label{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.capture-cloud-config select{max-width:100%;padding:6px 10px;border:1px solid var(--line);border-radius:999px;background:var(--surface);color:var(--ink);font:inherit}
+.capture-cloud-config a{color:var(--accent);text-underline-offset:3px}
 .capture-cloud-config input{width:260px;max-width:100%;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink)}
 .capture-on :is(.deadline-options,.task-execution-options,.record-time-options),.capture-on .form-field:has([name=priority]){display:none}
 @media(prefers-reduced-motion:reduce){.capture-results>summary,.capture-results>summary::after{transition:none}}
@@ -270,3 +273,5 @@ select,.range-select,.secondary,.batch-bar button,.urgency-summary button{border
 .capture-timing label{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
 .capture-plan-fields{max-width:100%}
 @media(max-width:560px){.capture-line-fields,.capture-timing{grid-template-columns:minmax(0,1fr)}}
+
+.capture-config-entry{justify-self:start;margin-top:4px}

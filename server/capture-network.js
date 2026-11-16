@@ -12,8 +12,9 @@ export async function captureOnline(force=false){
  if(!force&&cached!==null&&Date.now()-checked<10000)return cached;
  if(pending)return pending;
  pending=(async()=>{
-  const via=await captureProxy(),args=['--silent','--show-error','--head','--location','--max-time','3','--output',process.platform==='win32'?'NUL':'/dev/null','--write-out','%{http_code}',...(via?['--proxy',via]:[])];
-  const results=await Promise.all(['https://www.microsoft.com','https://www.google.com/generate_204'].map(async url=>{try{const {stdout}=await run(process.platform==='win32'?'curl.exe':'curl',[...args,url],{windowsHide:true,timeout:4000,maxBuffer:8192});return /^(200|204)$/.test(stdout.trim());}catch{return false;}}));
-  cached=results.some(Boolean);checked=Date.now();return cached;
+  const via=captureProxy(),args=['--silent','--show-error','--head','--location','--max-time','3','--output',process.platform==='win32'?'NUL':'/dev/null','--write-out','%{http_code}'];
+  const sites=[['https://www.baidu.com',true],['https://siliconflow.cn',true],['https://www.microsoft.com',false],['https://www.google.com/generate_204',false]];
+  cached=await Promise.any(sites.map(async([url,domestic])=>{const proxy=domestic?'':await via;const {stdout}=await run(process.platform==='win32'?'curl.exe':'curl',[...args,...(domestic?['--noproxy','*']:proxy?['--proxy',proxy]:[]),url],{windowsHide:true,timeout:4000,maxBuffer:8192});if(!/^(200|204)$/.test(stdout.trim()))throw Error('Offline probe');return true;})).catch(()=>false);
+  checked=Date.now();return cached;
  })().finally(()=>{pending=null;});return pending;
 }

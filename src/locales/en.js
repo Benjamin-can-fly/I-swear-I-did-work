@@ -1,7 +1,11 @@
 // Interface copy only. Interpolated user content is never translated.
 export const en=Object.fromEntries(`
-配置 Gemini API 密钥|Connect Gemini
-密钥仅保存在本机；输入将发送给 Gemini。|Your key stays on this computer. Your notes are sent to Gemini.
+配置在线模型|Connect an online model
+密钥仅保存在本机；输入正文将发送给选定的服务商。|Your key stays on this computer. Your notes are sent to the selected provider.
+服务商|Provider
+硅基流动 · 通义千问（国内）|SiliconFlow · Qwen (China)
+Gemini（海外）|Gemini (international)
+获取密钥|Get an API key
 保存配置|Save configuration
 配置未保存，请重试|Couldn’t save the configuration. Try again.
 

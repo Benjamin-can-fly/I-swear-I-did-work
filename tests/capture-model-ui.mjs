@@ -20,7 +20,7 @@ try{
  let releaseFirst;const firstGate=new Promise(resolve=>{releaseFirst=resolve;});
  const requests=[],row=(text,day)=>({kind:'task',text,date:day,time:'',when:'scheduled',candidates:[],target:'',source:raw});
  await page.route('**/api/capture-status',r=>r.fulfill({json:status}));
- await page.route('**/api/capture-config',r=>{configCalls++;assert.deepEqual(r.request().postDataJSON(),{apiKey:'test-key-for-client-contract'});status={available:true,mode:'model',online:true,engine:'test-model'};return r.fulfill({json:status});});
+ await page.route('**/api/capture-config',r=>{configCalls++;assert.deepEqual(r.request().postDataJSON(),{provider:'siliconflow',apiKey:'test-key-for-client-contract'});status={available:true,mode:'model',online:true,engine:'test-model'};return r.fulfill({json:status});});
  await page.route('**/api/capture-parse',async route=>{
   const body=route.request().postDataJSON();requests.push(body);if(requests.length===1)await firstGate;
   await new Promise(r=>setTimeout(r,body.text==='慢结果'?1600:450));

@@ -52,7 +52,9 @@ export class CaptureEditor{
   this.editor=editor;this.tasks=tasks;this.save=save;this.form=editor.form;this.input=this.form.elements.content;this.key=editor.key+'-capture';this.revision=0;
   this.box=document.createElement('div');this.box.className='capture-preview';this.input.after(this.box);
   this.modelState=document.createElement('div');this.modelState.className='capture-model-state';this.modelState.setAttribute('role','status');this.modelState.setAttribute('aria-live','polite');this.box.after(this.modelState);
+  this.configEntry=document.createElement('button');this.configEntry.type='button';this.configEntry.className='text-button capture-config-entry';this.configEntry.textContent=tr('配置在线模型');this.form.querySelector('.composer-fields').append(this.configEntry);this.configEntry.addEventListener('click',()=>this.openConfiguration());
   this.modelState.addEventListener('click',e=>{if(e.target.closest('[data-model-configure]'))this.configure();else if(e.target.closest('[data-model-retry]')){this.raw=null;this.prepare(true);}});
+  this.modelState.addEventListener('change',e=>{if(e.target.matches('[data-model-provider]')){e.stopPropagation();this.updateConfigProvider();}});
   this.modelState.addEventListener('keydown',e=>{if(e.target.matches('[data-model-key]')&&e.key==='Enter'){e.preventDefault();e.stopPropagation();this.configure();}});
   this.input.addEventListener('focus',()=>{if(this.active&&!this.editor.saving)this.refreshMode(true);});
   for(const event of ['online','offline','focus'])window.addEventListener(event,()=>{if(this.active&&this.form.getClientRects().length)this.refreshMode(true);});
@@ -73,7 +75,7 @@ export class CaptureEditor{
   else this.input.placeholder=this.active?tr('比如：刚交了报告。每天晚上 8 点记单词。'):this.editor.kind==='record'?tr('刚做了什么？'):tr('有什么要做的？');
  }
  sync(){
-  const active=this.active,record=this.editor.kind==='record';this.form.classList.toggle('capture-on',active);this.box.hidden=!active;this.modelState.hidden=!active;
+  const active=this.active,record=this.editor.kind==='record';this.configEntry.hidden=!active;this.form.classList.toggle('capture-on',active);this.box.hidden=!active;this.modelState.hidden=!active;
   if(!record){
    this.form.querySelector('.existing-plan-options').hidden=!this.editor.item?.startDate;
    this.form.elements.status.querySelector('[value="done"]').hidden=active;
@@ -99,18 +101,22 @@ export class CaptureEditor{
   clearTimeout(this.timer);this.abort?.abort();this.revision++;this.raw=null;this.pending=null;this.rows=[];this.touched=false;this.modelError=false;this.modelReview=false;this.modelEngine='';this.modelRetained=0;this.box.replaceChildren();this.modelState.replaceChildren();delete this.modelState.dataset.state;
   if(!this.active||this.composing)return;this.timer=setTimeout(()=>{if(!this.editor.saving)this.prepare();},900);
  }
- remember(){try{localStorage.setItem(this.key,JSON.stringify({version:5,captureMode:this.captureMode||'model',raw:this.raw,day:this.day,fileKey:this.fileKey,rows:this.rows,modelEngine:this.modelEngine||'',modelReview:this.modelReview||false,modelRetained:this.modelRetained||0}));}catch{}}
+ remember(){try{localStorage.setItem(this.key,JSON.stringify({version:5,provider:this.status?.provider||'',captureMode:this.captureMode||'model',raw:this.raw,day:this.day,fileKey:this.fileKey,rows:this.rows,modelEngine:this.modelEngine||'',modelReview:this.modelReview||false,modelRetained:this.modelRetained||0}));}catch{}}
  setModelState(state){
   const text=({working:'正在整理…',ready:'',partial:'部分内容需要你核对',offline:'离线记录 · 日期和次数请核对',setup:'',error:'暂时没有整理好，原文还在',edited:'已保留你的修改'})[state]||'';
   this.modelState.dataset.state=state;this.modelState.innerHTML=`<small>${esc(tr(text))}</small>${state==='error'?` <button type="button" class="text-button" data-model-retry>${tr('重试')}</button>`:''}`;
-  if(state==='setup'||state==='error')this.modelState.insertAdjacentHTML('beforeend',`<details class="capture-cloud-config"><summary>${tr('配置 Gemini API 密钥')}</summary><small>${tr('密钥仅保存在本机；输入将发送给 Gemini。')}</small><div><input type="password" data-model-key autocomplete="off" spellcheck="false" aria-label="Gemini API key" placeholder="Gemini API key"><button type="button" class="text-button" data-model-configure>${tr('保存配置')}</button></div><small data-config-status></small></details>`);
+  if(state==='setup'||state==='error'||state==='configure'){
+   const provider=this.status?.provider==='gemini'?'gemini':'siliconflow';
+   this.modelState.insertAdjacentHTML('beforeend',`<details class="capture-cloud-config"><summary>${tr('配置在线模型')}</summary><small>${tr('密钥仅保存在本机；输入正文将发送给选定的服务商。')}</small><div><label>${tr('服务商')}<select data-model-provider>${option('siliconflow',tr('硅基流动 · 通义千问（国内）'),provider)}${option('gemini',tr('Gemini（海外）'),provider)}</select></label><a data-model-key-link target="_blank" rel="noopener noreferrer">${tr('获取密钥')}</a></div><div><input type="password" data-model-key autocomplete="off" spellcheck="false" aria-label="API key"><button type="button" class="text-button" data-model-configure>${tr('保存配置')}</button></div><small data-config-status></small></details>`);
+   this.updateConfigProvider();
+  }
  }
  async refreshMode(force=false){
   try{
    const status=await modelStatus(force);if(!this.active)return;
-   const previous=this.captureMode;this.status=status;this.captureMode=status.mode==='manual'&&status.reason==='offline'?'manual':'model';
+   const previous=this.captureMode,previousProvider=this.status?.provider;this.status=status;this.captureMode=status.mode==='manual'&&status.reason==='offline'?'manual':'model';
    this.form.dataset.captureMode=this.captureMode;
-   if(previous&&previous!==this.captureMode){
+   if(previous&&(previous!==this.captureMode||previousProvider&&previousProvider!==status.provider)){
     this.abort?.abort();this.revision++;this.pending=null;
     // User corrections survive reconnection; automatic offline guesses are replaced by the model.
     if(!this.touched){this.raw=null;await this.prepare();return;}
@@ -119,15 +125,26 @@ export class CaptureEditor{
    if(!this.input.value.trim())this.setModelState(this.captureMode==='manual'?'offline':status.available?'ready':'setup');
   }catch{if(this.active&&!this.input.value.trim())this.setModelState('error');}
  }
+ updateConfigProvider(){
+  const provider=this.modelState.querySelector('[data-model-provider]')?.value==='gemini'?'gemini':'siliconflow',input=this.modelState.querySelector('[data-model-key]'),link=this.modelState.querySelector('[data-model-key-link]');
+  if(input){input.value='';input.placeholder=provider==='gemini'?'Gemini API key':'SiliconFlow API key';}
+  if(link)link.href=provider==='gemini'?'https://aistudio.google.com/apikey':'https://cloud.siliconflow.cn/account/ak';
+ }
+ async openConfiguration(){
+  try{this.status=await modelStatus(true);}catch{}
+  if(!this.active)return;
+  this.setModelState('configure');const details=this.modelState.querySelector('.capture-cloud-config');if(details)details.open=true;
+  this.modelState.querySelector('[data-model-provider]')?.focus({preventScroll:true});
+ }
  async configure(){
   if(this.configuring)return;
-  const input=this.modelState.querySelector('[data-model-key]'),button=this.modelState.querySelector('[data-model-configure]'),note=this.modelState.querySelector('[data-config-status]');
-  if(!input?.value.trim()){input?.focus();return;}this.configuring=true;button.disabled=true;
+  const input=this.modelState.querySelector('[data-model-key]'),button=this.modelState.querySelector('[data-model-configure]'),note=this.modelState.querySelector('[data-config-status]'),providerInput=this.modelState.querySelector('[data-model-provider]');
+  if(!input?.value.trim()){input?.focus();return;}this.configuring=true;button.disabled=true;providerInput.disabled=true;input.disabled=true;
   try{
-   this.status=await api('/api/capture-config',{method:'POST',body:JSON.stringify({apiKey:input.value.trim()})});input.value='';modelStatusCache=null;this.raw=null;
-   await this.prepare(true);if(!this.input.value.trim())await this.refreshMode(true);
+   this.status=await api('/api/capture-config',{method:'POST',body:JSON.stringify({provider:providerInput.value,apiKey:input.value.trim()})});input.value='';modelStatusCache=null;
+   if(this.touched){this.remember();this.setModelState('edited');}else{this.raw=null;await this.prepare(true);}if(!this.input.value.trim())await this.refreshMode(true);
   }catch{if(note)note.textContent=tr('配置未保存，请重试');}
-  finally{this.configuring=false;if(button.isConnected)button.disabled=false;}
+  finally{this.configuring=false;if(button.isConnected)button.disabled=false;if(providerInput.isConnected)providerInput.disabled=false;if(input.isConnected)input.disabled=false;}
  }
  async prepare(force=false){
   clearTimeout(this.timer);const raw=this.input.value.trim(),day=localDate(),fileKey=this.fileSignature();
@@ -148,7 +165,7 @@ export class CaptureEditor{
     // Only reviewed drafts or model results resume online. Old automatic rule previews do not.
     try{const saved=JSON.parse(localStorage.getItem(this.key));if(saved?.raw===raw&&saved.day===day&&(saved.fileKey||'')===fileKey&&Array.isArray(saved.rows)){
      const corrected=saved.rows.some(r=>Object.values(r.corrected||{}).some(Boolean));
-     if(corrected||saved.version===5&&saved.modelEngine&&saved.modelEngine!=='rules'&&saved.captureMode!=='manual'||this.captureMode==='manual'&&saved.version===5){
+     if(corrected||saved.version===5&&saved.provider===status.provider&&saved.modelEngine&&saved.modelEngine!=='rules'&&saved.captureMode!=='manual'||this.captureMode==='manual'&&saved.version===5){
       this.rows=keyedRows(saved.rows);this.modelEngine=saved.modelEngine||'';this.modelRetained=Number(saved.modelRetained)||0;this.touched=corrected;
       this.setModelState(this.captureMode==='manual'?'offline':corrected?'edited':this.modelRetained?'partial':'ready');this.paintRows();return;
      }
