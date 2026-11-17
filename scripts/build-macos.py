@@ -58,8 +58,8 @@ def build(arch):
             '-framework','AppKit','-framework','WebKit','-framework','UniformTypeIdentifiers',
             ROOT/'desktop/macos/main.swift','-o',macos/'WorkJournal')
         # Ad-hoc integrity signing is not Developer ID signing or Apple notarization.
-        run('lipo', '-verify_arch', swift_arch, macos/'WorkJournal')
-        run('lipo', '-verify_arch', swift_arch, runtime/'node')
+        run('lipo', macos/'WorkJournal', '-verify_arch', swift_arch)
+        run('lipo', runtime/'node', '-verify_arch', swift_arch)
         run('codesign','--force','--sign','-',app)
         run('codesign','--verify','--deep','--strict',app)
         # Explicit opt-out is reserved for builds requested without native testing.
