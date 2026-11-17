@@ -32,7 +32,9 @@ jobs:
             arch: arm64
           - runner: macos-15-intel
             arch: x64
-    runs-on: ${{ matrix.runner }}
+    # Packaging-only ARM builds can cross-compile on Intel when ARM hosts are scarce.
+    # Verified builds continue to use the matching native architecture.
+    runs-on: ${{ matrix.arch == 'arm64' && inputs.verify == false && github.event_name != 'push' && 'macos-15-intel' || matrix.runner }}
     timeout-minutes: 25
     env:
       TZ: Asia/Shanghai

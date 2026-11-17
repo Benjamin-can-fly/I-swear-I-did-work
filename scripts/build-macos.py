@@ -1,5 +1,5 @@
 """Build on macOS. Uses only Apple's tools and Python's standard library."""
-import argparse, hashlib, json, os, plistlib, shutil, subprocess, sys, tarfile, tempfile, urllib.request
+import argparse, hashlib, json, os, platform, plistlib, shutil, subprocess, sys, tarfile, tempfile, urllib.request
 import importlib.util
 from pathlib import Path
 
@@ -13,6 +13,9 @@ def build(arch):
     if sys.platform != 'darwin':
         raise SystemExit('macOS with Xcode Command Line Tools is required. Use the GitHub macOS workflow.')
     swift_arch = {'arm64':'arm64', 'x64':'x86_64'}[arch]
+    cross_build = platform.machine() != swift_arch
+    if cross_build and os.environ.get('WORKLOG_SKIP_NATIVE_TESTS') != '1':
+        raise SystemExit('Cross-architecture packaging requires explicit native-test opt-out.')
     version = json.loads((ROOT/'package.json').read_text(encoding='utf-8-sig'))['version']
     dist = ROOT/'dist'; dist.mkdir(exist_ok=True)
     archive_name = f'node-v{NODE_VERSION}-darwin-{arch}.tar.gz'
@@ -41,7 +44,7 @@ def build(arch):
             shutil.copy2(ROOT/name, code/name)
         for name in ['src','server']:
             shutil.copytree(ROOT/name, code/name)
-        run(runtime/'node', ROOT/'scripts/release-privacy.mjs', '--runtime', code)
+        run(shutil.which('node') if cross_build else runtime/'node', ROOT/'scripts/release-privacy.mjs', '--runtime', code)
         for name in ['LICENSE','THIRD-PARTY-NOTICES.md']:
             if (ROOT/name).exists(): shutil.copy2(ROOT/name, resources/name)
         shutil.copy2(ROOT/'output/pdf/Work-Log-User-Guide.pdf',resources/'使用说明.pdf')
@@ -55,6 +58,8 @@ def build(arch):
             '-framework','AppKit','-framework','WebKit','-framework','UniformTypeIdentifiers',
             ROOT/'desktop/macos/main.swift','-o',macos/'WorkJournal')
         # Ad-hoc integrity signing is not Developer ID signing or Apple notarization.
+        run('lipo', '-verify_arch', swift_arch, macos/'WorkJournal')
+        run('lipo', '-verify_arch', swift_arch, runtime/'node')
         run('codesign','--force','--sign','-',app)
         run('codesign','--verify','--deep','--strict',app)
         # Explicit opt-out is reserved for builds requested without native testing.
